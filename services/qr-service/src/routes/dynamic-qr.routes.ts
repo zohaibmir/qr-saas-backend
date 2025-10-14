@@ -114,7 +114,7 @@ router.post('/:qrCodeId/versions', async (req: AuthRequest, res: Response) => {
     });
 
     if (!result.success) {
-      const statusCode = result.error?.includes('validation') ? 400 : 500;
+      const statusCode = result.error?.message?.includes('validation') ? 400 : result.error?.statusCode || 500;
       return res.status(statusCode).json(result);
     }
 
@@ -253,8 +253,8 @@ router.put('/versions/:versionId', async (req: AuthRequest, res: Response) => {
     const result = await dynamicQRService.updateContentVersion(versionId, req.body);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('not found') ? 404 : 
-                        result.error?.includes('validation') ? 400 : 500;
+      const statusCode = result.error?.message?.includes('not found') ? 404 : result.error?.statusCode || 
+                        result.error?.message?.includes('validation') ? 400 : 500;
       return res.status(statusCode).json(result);
     }
 
@@ -295,7 +295,7 @@ router.post('/versions/:versionId/activate', async (req: AuthRequest, res: Respo
     const result = await dynamicQRService.activateContentVersion(versionId);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('not found') ? 404 : 500;
+      const statusCode = result.error?.message?.includes('not found') ? 404 : result.error?.statusCode || 500;
       return res.status(statusCode).json(result);
     }
 
@@ -336,7 +336,7 @@ router.post('/versions/:versionId/deactivate', async (req: AuthRequest, res: Res
     const result = await dynamicQRService.deactivateContentVersion(versionId);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('not found') ? 404 : 500;
+      const statusCode = result.error?.message?.includes('not found') ? 404 : result.error?.statusCode || 500;
       return res.status(statusCode).json(result);
     }
 
@@ -379,8 +379,8 @@ router.delete('/versions/:versionId', async (req: AuthRequest, res: Response) =>
     const result = await dynamicQRService.deleteContentVersion(versionId);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('not found') ? 404 :
-                        result.error?.includes('Cannot delete') ? 400 : 500;
+      const statusCode = result.error?.message?.includes('not found') ? 404 : result.error?.statusCode ||
+                        result.error?.message?.includes('Cannot delete') ? 400 : 500;
       return res.status(statusCode).json(result);
     }
 
@@ -472,7 +472,7 @@ router.post('/:qrCodeId/ab-tests', async (req: AuthRequest, res: Response) => {
     const result = await dynamicQRService.createABTest(qrCodeId, req.body);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('validation') ? 400 : 500;
+      const statusCode = result.error?.message?.includes('validation') ? 400 : result.error?.statusCode || 500;
       return res.status(statusCode).json(result);
     }
 
@@ -579,8 +579,8 @@ router.put('/ab-tests/:testId', async (req: AuthRequest, res: Response) => {
     const result = await dynamicQRService.updateABTest(testId, req.body);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('not found') ? 404 :
-                        result.error?.includes('Cannot change') ? 400 : 500;
+      const statusCode = result.error?.message?.includes('not found') ? 404 : result.error?.statusCode ||
+                        result.error?.message?.includes('Cannot change') ? 400 : 500;
       return res.status(statusCode).json(result);
     }
 
@@ -623,8 +623,8 @@ router.post('/ab-tests/:testId/start', async (req: AuthRequest, res: Response) =
     const result = await dynamicQRService.startABTest(testId);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('not found') ? 404 :
-                        result.error?.includes('Only draft') ? 400 : 500;
+      const statusCode = result.error?.message?.includes('not found') ? 404 : result.error?.statusCode ||
+                        result.error?.message?.includes('Only draft') ? 400 : 500;
       return res.status(statusCode).json(result);
     }
 
@@ -665,7 +665,7 @@ router.post('/ab-tests/:testId/pause', async (req: AuthRequest, res: Response) =
     const result = await dynamicQRService.pauseABTest(testId);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('not found') ? 404 : 500;
+      const statusCode = result.error?.message?.includes('not found') ? 404 : result.error?.statusCode || 500;
       return res.status(statusCode).json(result);
     }
 
@@ -717,7 +717,7 @@ router.post('/ab-tests/:testId/complete', async (req: AuthRequest, res: Response
     const result = await dynamicQRService.completeABTest(testId, winnerVariant);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('not found') ? 404 : 500;
+      const statusCode = result.error?.message?.includes('not found') ? 404 : result.error?.statusCode || 500;
       return res.status(statusCode).json(result);
     }
 
@@ -760,8 +760,8 @@ router.delete('/ab-tests/:testId', async (req: AuthRequest, res: Response) => {
     const result = await dynamicQRService.deleteABTest(testId);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('not found') ? 404 :
-                        result.error?.includes('Cannot delete') ? 400 : 500;
+      const statusCode = result.error?.message?.includes('not found') ? 404 : result.error?.statusCode ||
+                        result.error?.message?.includes('Cannot delete') ? 400 : 500;
       return res.status(statusCode).json(result);
     }
 
@@ -847,7 +847,7 @@ router.post('/:qrCodeId/redirect-rules', async (req: AuthRequest, res: Response)
     const result = await dynamicQRService.createRedirectRule(qrCodeId, req.body);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('validation') ? 400 : 500;
+      const statusCode = result.error?.message?.includes('validation') ? 400 : result.error?.statusCode || 500;
       return res.status(statusCode).json(result);
     }
 
@@ -950,7 +950,7 @@ router.put('/redirect-rules/:ruleId', async (req: AuthRequest, res: Response) =>
     const result = await dynamicQRService.updateRedirectRule(ruleId, req.body);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('not found') ? 404 : 500;
+      const statusCode = result.error?.message?.includes('not found') ? 404 : result.error?.statusCode || 500;
       return res.status(statusCode).json(result);
     }
 
@@ -991,7 +991,7 @@ router.delete('/redirect-rules/:ruleId', async (req: AuthRequest, res: Response)
     const result = await dynamicQRService.deleteRedirectRule(ruleId);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('not found') ? 404 : 500;
+      const statusCode = result.error?.message?.includes('not found') ? 404 : result.error?.statusCode || 500;
       return res.status(statusCode).json(result);
     }
 
@@ -1088,7 +1088,7 @@ router.post('/:qrCodeId/schedules', async (req: AuthRequest, res: Response) => {
     const result = await dynamicQRService.createContentSchedule(qrCodeId, req.body);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('validation') ? 400 : 500;
+      const statusCode = result.error?.message?.includes('validation') ? 400 : result.error?.statusCode || 500;
       return res.status(statusCode).json(result);
     }
 
@@ -1202,7 +1202,7 @@ router.put('/schedules/:scheduleId', async (req: AuthRequest, res: Response) => 
     const result = await dynamicQRService.updateContentSchedule(scheduleId, req.body);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('not found') ? 404 : 500;
+      const statusCode = result.error?.message?.includes('not found') ? 404 : result.error?.statusCode || 500;
       return res.status(statusCode).json(result);
     }
 
@@ -1243,7 +1243,7 @@ router.delete('/schedules/:scheduleId', async (req: AuthRequest, res: Response) 
     const result = await dynamicQRService.deleteContentSchedule(scheduleId);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('not found') ? 404 : 500;
+      const statusCode = result.error?.message?.includes('not found') ? 404 : result.error?.statusCode || 500;
       return res.status(statusCode).json(result);
     }
 
@@ -1349,7 +1349,7 @@ router.get('/:qrCodeId/resolve', async (req: AuthRequest, res: Response) => {
     const result = await dynamicQRService.resolveRedirect(qrCodeId, context);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('No active content') ? 404 : 500;
+      const statusCode = result.error?.message?.includes('No active content') ? 404 : result.error?.statusCode || 500;
       return res.status(statusCode).json(result);
     }
 

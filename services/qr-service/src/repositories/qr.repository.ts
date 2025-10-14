@@ -279,14 +279,12 @@ export class QRRepository implements IQRRepository {
       content: typeof row.content === 'string' ? JSON.parse(row.content) : row.content,
       designConfig: typeof row.design_config === 'string' ? JSON.parse(row.design_config) : row.design_config,
       targetUrl: row.target_url,
-      isActive: row.is_active,
-      validityConfig: {
-        expiresAt: row.expires_at ? new Date(row.expires_at) : undefined,
-        maxScans: row.max_scans,
-        passwordHash: row.password_hash,
-        validSchedule: row.valid_schedule ? JSON.parse(row.valid_schedule) : undefined
-      },
-      currentScans: row.current_scans || 0,
+      is_active: row.is_active,
+      expires_at: row.expires_at ? new Date(row.expires_at) : undefined,
+      max_scans: row.max_scans,
+      current_scans: row.current_scans || 0,
+      password_hash: row.password_hash,
+      valid_schedule: row.valid_schedule ? JSON.parse(row.valid_schedule) : undefined,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at)
     };

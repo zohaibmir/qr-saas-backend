@@ -209,6 +209,38 @@ INSERT INTO subscription_plans (name, price, qr_limit, analytics_retention_days,
 ('Business', 49.00, -1, 1095, '{"customization": "advanced", "api_access": true, "team_features": true, "custom_domains": true, "white_label": true}'),
 ('Enterprise', 199.00, -1, -1, '{"customization": "advanced", "api_access": true, "team_features": true, "custom_domains": true, "white_label": true, "priority_support": true}');
 
+-- Insert default bulk QR templates
+INSERT INTO qr_bulk_templates (name, description, template_type, field_mappings, default_values, validation_rules, qr_settings, is_system_template) VALUES 
+('URL List', 'Bulk create QR codes from a list of URLs', 'url_list', 
+ '{"name": "name", "url": "url", "description": "description"}',
+ '{"type": "url", "design_config": {"foregroundColor": "#000000", "backgroundColor": "#ffffff", "size": 200}}',
+ '{"url": {"required": true, "pattern": "^https?://.+"}, "name": {"required": true, "maxLength": 255}}',
+ '{"errorCorrectionLevel": "M", "format": "png"}', true),
+
+('Business Cards', 'Bulk create vCard QR codes for business contacts', 'vcard_bulk',
+ '{"name": "name", "firstName": "first_name", "lastName": "last_name", "email": "email", "phone": "phone", "company": "company", "title": "title"}',
+ '{"type": "vcard", "design_config": {"foregroundColor": "#1f2937", "backgroundColor": "#ffffff", "size": 200}}',
+ '{"firstName": {"required": true}, "lastName": {"required": true}, "email": {"pattern": "^[^@]+@[^@]+\\.[^@]+$"}}',
+ '{"errorCorrectionLevel": "M", "format": "png"}', true),
+
+('Product Catalog', 'Bulk create QR codes for product listings', 'product_bulk',
+ '{"name": "product_name", "sku": "sku", "url": "product_url", "price": "price", "category": "category"}',
+ '{"type": "url", "design_config": {"foregroundColor": "#059669", "backgroundColor": "#ffffff", "size": 200}}',
+ '{"product_name": {"required": true}, "sku": {"required": true}, "product_url": {"required": true, "pattern": "^https?://.+"}}',
+ '{"errorCorrectionLevel": "M", "format": "png"}', true),
+
+('Event Tickets', 'Bulk create QR codes for event tickets and check-ins', 'event_tickets',
+ '{"name": "ticket_name", "eventName": "event_name", "ticketId": "ticket_id", "seatNumber": "seat", "gateInfo": "gate"}',
+ '{"type": "text", "design_config": {"foregroundColor": "#7c3aed", "backgroundColor": "#ffffff", "size": 200}}',
+ '{"ticket_name": {"required": true}, "event_name": {"required": true}, "ticket_id": {"required": true}}',
+ '{"errorCorrectionLevel": "H", "format": "png"}', true),
+
+('WiFi Access', 'Bulk create WiFi QR codes for multiple locations', 'wifi_bulk',
+ '{"name": "location_name", "ssid": "wifi_ssid", "password": "wifi_password", "security": "security_type"}',
+ '{"type": "wifi", "design_config": {"foregroundColor": "#dc2626", "backgroundColor": "#ffffff", "size": 200}}',
+ '{"location_name": {"required": true}, "wifi_ssid": {"required": true}, "security_type": {"enum": ["WPA", "WEP", "nopass"]}}',
+ '{"errorCorrectionLevel": "M", "format": "png"}', true);
+
 -- Create default categories for new users
 CREATE OR REPLACE FUNCTION create_default_categories(p_user_id UUID)
 RETURNS VOID AS $$
@@ -345,6 +377,174 @@ CREATE INDEX IF NOT EXISTS idx_redirect_rules_enabled ON qr_redirect_rules(qr_co
 -- Content schedule indexes
 CREATE INDEX IF NOT EXISTS idx_content_schedule_qr_code ON qr_content_schedule(qr_code_id);
 CREATE INDEX IF NOT EXISTS idx_content_schedule_active ON qr_content_schedule(is_active, start_time, end_time) WHERE is_active = true;
+
+-- ===============================================
+-- BULK QR GENERATION SYSTEM TABLES
+-- ===============================================
+
+-- Bulk QR Generation Batches
+CREATE TABLE IF NOT EXISTS qr_bulk_batches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    batch_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    template_id VARCHAR(50), -- Optional template to use for all QRs
+    category_id UUID REFERENCES qr_categories(id) ON DELETE SET NULL,
+    total_count INTEGER NOT NULL DEFAULT 0,
+    processed_count INTEGER NOT NULL DEFAULT 0,
+    success_count INTEGER NOT NULL DEFAULT 0,
+    failed_count INTEGER NOT NULL DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')),
+    processing_started_at TIMESTAMP,
+    processing_completed_at TIMESTAMP,
+    input_file_id UUID REFERENCES file_uploads(id),
+    input_data JSONB, -- Store CSV data or array of QR requests
+    error_log JSONB, -- Store processing errors
+    progress_percentage INTEGER DEFAULT 0 CHECK (progress_percentage BETWEEN 0 AND 100),
+    estimated_completion_time TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Bulk QR Generation Items (Individual QR codes in a batch)
+CREATE TABLE IF NOT EXISTS qr_bulk_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    batch_id UUID NOT NULL REFERENCES qr_bulk_batches(id) ON DELETE CASCADE,
+    qr_code_id UUID REFERENCES qr_codes(id) ON DELETE SET NULL, -- Null if creation failed
+    row_number INTEGER NOT NULL, -- Original row number from CSV
+    input_data JSONB NOT NULL, -- Original input data for this QR
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'success', 'failed', 'skipped')),
+    error_message TEXT,
+    error_details JSONB,
+    processed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Ensure unique row numbers within batch
+    UNIQUE(batch_id, row_number)
+);
+
+-- Bulk QR Templates for common bulk operations
+CREATE TABLE IF NOT EXISTS qr_bulk_templates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE, -- NULL for system templates
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    template_type VARCHAR(50) NOT NULL, -- 'csv_mapping', 'url_list', 'vcard_bulk', etc.
+    field_mappings JSONB NOT NULL, -- Map CSV columns to QR fields
+    default_values JSONB, -- Default values for optional fields
+    validation_rules JSONB, -- Validation rules for input data
+    qr_settings JSONB, -- Default QR generation settings
+    is_system_template BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    usage_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ===============================================
+-- BULK QR GENERATION INDEXES
+-- ===============================================
+
+-- Bulk batches indexes
+CREATE INDEX IF NOT EXISTS idx_bulk_batches_user_id ON qr_bulk_batches(user_id);
+CREATE INDEX IF NOT EXISTS idx_bulk_batches_status ON qr_bulk_batches(status);
+CREATE INDEX IF NOT EXISTS idx_bulk_batches_created_at ON qr_bulk_batches(created_at);
+CREATE INDEX IF NOT EXISTS idx_bulk_batches_processing ON qr_bulk_batches(status, processing_started_at) WHERE status = 'processing';
+
+-- Bulk items indexes
+CREATE INDEX IF NOT EXISTS idx_bulk_items_batch_id ON qr_bulk_items(batch_id);
+CREATE INDEX IF NOT EXISTS idx_bulk_items_status ON qr_bulk_items(batch_id, status);
+CREATE INDEX IF NOT EXISTS idx_bulk_items_qr_code_id ON qr_bulk_items(qr_code_id);
+CREATE INDEX IF NOT EXISTS idx_bulk_items_row_number ON qr_bulk_items(batch_id, row_number);
+
+-- Bulk templates indexes
+CREATE INDEX IF NOT EXISTS idx_bulk_templates_user_id ON qr_bulk_templates(user_id);
+CREATE INDEX IF NOT EXISTS idx_bulk_templates_type ON qr_bulk_templates(template_type);
+CREATE INDEX IF NOT EXISTS idx_bulk_templates_system ON qr_bulk_templates(is_system_template) WHERE is_system_template = true;
+CREATE INDEX IF NOT EXISTS idx_bulk_templates_active ON qr_bulk_templates(is_active) WHERE is_active = true;
+
+-- ===============================================
+-- BULK QR GENERATION FUNCTIONS
+-- ===============================================
+
+-- Function to update batch progress
+CREATE OR REPLACE FUNCTION update_batch_progress(p_batch_id UUID)
+RETURNS VOID AS $$
+DECLARE
+    v_total INTEGER;
+    v_processed INTEGER;
+    v_success INTEGER;
+    v_failed INTEGER;
+    v_progress INTEGER;
+BEGIN
+    -- Get current counts
+    SELECT 
+        COUNT(*),
+        COUNT(*) FILTER (WHERE status IN ('success', 'failed', 'skipped')),
+        COUNT(*) FILTER (WHERE status = 'success'),
+        COUNT(*) FILTER (WHERE status = 'failed')
+    INTO v_total, v_processed, v_success, v_failed
+    FROM qr_bulk_items 
+    WHERE batch_id = p_batch_id;
+    
+    -- Calculate progress percentage
+    v_progress := CASE 
+        WHEN v_total > 0 THEN ROUND((v_processed::DECIMAL / v_total) * 100)
+        ELSE 0 
+    END;
+    
+    -- Update batch
+    UPDATE qr_bulk_batches 
+    SET 
+        total_count = v_total,
+        processed_count = v_processed,
+        success_count = v_success,
+        failed_count = v_failed,
+        progress_percentage = v_progress,
+        status = CASE 
+            WHEN v_processed = v_total AND v_total > 0 THEN 'completed'
+            WHEN v_processed > 0 THEN 'processing'
+            ELSE status
+        END,
+        processing_completed_at = CASE 
+            WHEN v_processed = v_total AND v_total > 0 THEN CURRENT_TIMESTAMP
+            ELSE processing_completed_at
+        END,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = p_batch_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to get batch statistics
+CREATE OR REPLACE FUNCTION get_batch_stats(p_user_id UUID, p_days INTEGER DEFAULT 30)
+RETURNS TABLE(
+    total_batches BIGINT,
+    completed_batches BIGINT,
+    processing_batches BIGINT,
+    failed_batches BIGINT,
+    total_qr_codes BIGINT,
+    avg_batch_size NUMERIC,
+    success_rate NUMERIC
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*) as total_batches,
+        COUNT(*) FILTER (WHERE status = 'completed') as completed_batches,
+        COUNT(*) FILTER (WHERE status = 'processing') as processing_batches,
+        COUNT(*) FILTER (WHERE status = 'failed') as failed_batches,
+        COALESCE(SUM(success_count), 0) as total_qr_codes,
+        COALESCE(AVG(total_count), 0) as avg_batch_size,
+        CASE 
+            WHEN SUM(total_count) > 0 THEN 
+                ROUND((SUM(success_count)::DECIMAL / SUM(total_count)) * 100, 2)
+            ELSE 0
+        END as success_rate
+    FROM qr_bulk_batches
+    WHERE user_id = p_user_id 
+      AND created_at >= CURRENT_TIMESTAMP - INTERVAL '1 day' * p_days;
+END;
+$$ LANGUAGE plpgsql;
 
 -- ===============================================
 -- DYNAMIC QR HELPER FUNCTIONS

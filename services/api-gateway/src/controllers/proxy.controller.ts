@@ -39,6 +39,12 @@ export class ProxyController {
         requiresAuth: false // Some endpoints require auth, handled by service
       },
       {
+        path: '/api/bulk',
+        targetService: 'qr-service',
+        pathRewrite: '/bulk',
+        requiresAuth: true // Bulk operations require authentication
+      },
+      {
         path: '/api/analytics',
         targetService: 'analytics-service',
         pathRewrite: '/analytics',

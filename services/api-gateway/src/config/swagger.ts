@@ -1,5 +1,6 @@
 import swaggerJsdoc from 'swagger-jsdoc';
 import { SwaggerDefinition } from 'swagger-jsdoc';
+import { bulkQRSchemas } from '../docs/bulk-qr-routes';
 
 const swaggerDefinition: SwaggerDefinition = {
   openapi: '3.0.0',
@@ -350,6 +351,28 @@ Import the included Postman collection for comprehensive API testing.
           }
         }
       },
+      ErrorResponse: {
+        type: 'object',
+        properties: {
+          success: {
+            type: 'boolean',
+            example: false
+          },
+          error: {
+            type: 'object',
+            properties: {
+              code: {
+                type: 'string',
+                description: 'Error code'
+              },
+              message: {
+                type: 'string',
+                description: 'Error message'
+              }
+            }
+          }
+        }
+      },
       SuccessResponse: {
         type: 'object',
         properties: {
@@ -375,7 +398,8 @@ Import the included Postman collection for comprehensive API testing.
             }
           }
         }
-      }
+      },
+      ...bulkQRSchemas
     }
   },
   tags: [
@@ -410,6 +434,10 @@ Import the included Postman collection for comprehensive API testing.
     {
       name: 'Templates',
       description: 'QR code templates for quick generation with pre-configured settings'
+    },
+    {
+      name: 'Bulk QR Generation',
+      description: 'Bulk QR code generation operations with CSV processing, batch management, and progress tracking'
     }
   ]
 };

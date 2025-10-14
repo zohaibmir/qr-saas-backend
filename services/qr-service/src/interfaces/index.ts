@@ -119,11 +119,18 @@ export interface PaginationOptions {
   sortOrder?: 'asc' | 'desc';
 }
 
+export interface ServiceError {
+  code: string;
+  message: string;
+  statusCode: number;
+  details?: any;
+}
+
 export interface ServiceResponse<T> {
   success: boolean;
   data?: T;
   message?: string;
-  error?: string;
+  error?: ServiceError;
   metadata?: {
     requestId?: string;
     timestamp?: string;
@@ -635,4 +642,250 @@ export interface IDynamicQRRepository {
   recordDynamicAnalytics(analyticsData: any): Promise<QRDynamicAnalytics>;
   getDynamicAnalytics(qrCodeId: string, options?: any): Promise<QRDynamicAnalytics[]>;
   getDynamicQRStats(qrCodeId: string): Promise<DynamicQRStats>;
+}
+
+// ===============================================
+// BULK QR GENERATION INTERFACES
+// ===============================================
+
+// Bulk QR Generation Service Interface
+export interface IBulkQRService {
+  // Bulk Templates
+  getBulkTemplates(userId?: string): Promise<ServiceResponse<BulkQRTemplate[]>>;
+  getBulkTemplateById(templateId: string): Promise<ServiceResponse<BulkQRTemplate>>;
+  createBulkTemplate(userId: string, templateData: CreateBulkTemplateRequest): Promise<ServiceResponse<BulkQRTemplate>>;
+  updateBulkTemplate(templateId: string, templateData: Partial<CreateBulkTemplateRequest>): Promise<ServiceResponse<BulkQRTemplate>>;
+  deleteBulkTemplate(templateId: string): Promise<ServiceResponse<boolean>>;
+  
+  // Bulk Batch Operations
+  createBulkBatch(userId: string, batchData: CreateBulkBatchRequest): Promise<ServiceResponse<BulkQRBatch>>;
+  getBulkBatch(batchId: string, userId: string): Promise<ServiceResponse<BulkQRBatch>>;
+  getUserBulkBatches(userId: string, options?: BulkBatchQueryOptions): Promise<ServiceResponse<BulkQRBatch[]>>;
+  processBulkBatch(batchId: string): Promise<ServiceResponse<BulkProcessingResult>>;
+  cancelBulkBatch(batchId: string, userId: string): Promise<ServiceResponse<boolean>>;
+  deleteBulkBatch(batchId: string, userId: string): Promise<ServiceResponse<boolean>>;
+  
+  // Bulk Processing
+  processCsvData(csvData: string, templateId?: string): Promise<ServiceResponse<ParsedBulkData>>;
+  validateBulkData(data: any[], templateId?: string): Promise<ServiceResponse<BulkValidationResult>>;
+  getBulkBatchProgress(batchId: string): Promise<ServiceResponse<BulkBatchProgress>>;
+  
+  // Bulk Statistics
+  getBulkStats(userId: string, days?: number): Promise<ServiceResponse<BulkStats>>;
+}
+
+// Bulk QR Generation Repository Interface
+export interface IBulkQRRepository {
+  // Bulk Templates
+  createBulkTemplate(templateData: any): Promise<BulkQRTemplate>;
+  findBulkTemplateById(templateId: string): Promise<BulkQRTemplate | null>;
+  findBulkTemplatesByUser(userId: string): Promise<BulkQRTemplate[]>;
+  findSystemBulkTemplates(): Promise<BulkQRTemplate[]>;
+  updateBulkTemplate(templateId: string, templateData: any): Promise<BulkQRTemplate>;
+  deleteBulkTemplate(templateId: string): Promise<boolean>;
+  incrementTemplateUsage(templateId: string): Promise<void>;
+  
+  // Bulk Batches
+  createBulkBatch(batchData: any): Promise<BulkQRBatch>;
+  findBulkBatchById(batchId: string): Promise<BulkQRBatch | null>;
+  findBulkBatchesByUser(userId: string, options?: any): Promise<BulkQRBatch[]>;
+  updateBulkBatch(batchId: string, batchData: any): Promise<BulkQRBatch>;
+  deleteBulkBatch(batchId: string): Promise<boolean>;
+  
+  // Bulk Items
+  createBulkItems(items: any[]): Promise<BulkQRItem[]>;
+  findBulkItemsByBatch(batchId: string): Promise<BulkQRItem[]>;
+  updateBulkItem(itemId: string, itemData: any): Promise<BulkQRItem>;
+  updateBulkItemsStatus(batchId: string, status: BulkItemStatus, itemIds?: string[]): Promise<number>;
+  getBulkItemsStats(batchId: string): Promise<BulkItemStats>;
+  
+  // Statistics
+  getBulkStats(userId: string, days: number): Promise<BulkStats>;
+}
+
+// Core Bulk QR Types
+export interface BulkQRTemplate {
+  id: string;
+  userId?: string;
+  name: string;
+  description?: string;
+  templateType: BulkTemplateType;
+  fieldMappings: Record<string, string>;
+  defaultValues: Record<string, any>;
+  validationRules: Record<string, any>;
+  qrSettings: Record<string, any>;
+  isSystemTemplate: boolean;
+  isActive: boolean;
+  usageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BulkQRBatch {
+  id: string;
+  userId: string;
+  batchName: string;
+  description?: string;
+  templateId?: string;
+  categoryId?: string;
+  totalCount: number;
+  processedCount: number;
+  successCount: number;
+  failedCount: number;
+  status: BulkBatchStatus;
+  processingStartedAt?: string;
+  processingCompletedAt?: string;
+  inputFileId?: string;
+  inputData?: any;
+  errorLog?: any;
+  progressPercentage: number;
+  estimatedCompletionTime?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BulkQRItem {
+  id: string;
+  batchId: string;
+  qrCodeId?: string;
+  rowNumber: number;
+  inputData: any;
+  status: BulkItemStatus;
+  errorMessage?: string;
+  errorDetails?: any;
+  processedAt?: string;
+  createdAt: string;
+}
+
+// Request/Response Types
+export interface CreateBulkTemplateRequest {
+  name: string;
+  description?: string;
+  templateType: BulkTemplateType;
+  fieldMappings: Record<string, string>;
+  defaultValues?: Record<string, any>;
+  validationRules?: Record<string, any>;
+  qrSettings?: Record<string, any>;
+}
+
+export interface CreateBulkBatchRequest {
+  batchName: string;
+  description?: string;
+  templateId?: string;
+  categoryId?: string;
+  inputData: any[];
+  inputFileId?: string;
+  processImmediately?: boolean;
+}
+
+export interface BulkBatchQueryOptions {
+  limit?: number;
+  offset?: number;
+  status?: BulkBatchStatus;
+  sortBy?: 'created_at' | 'updated_at' | 'batch_name';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface ParsedBulkData {
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  data: any[];
+  errors: BulkDataError[];
+}
+
+export interface BulkValidationResult {
+  isValid: boolean;
+  totalItems: number;
+  validItems: number;
+  invalidItems: number;
+  errors: BulkDataError[];
+  warnings: BulkDataWarning[];
+}
+
+export interface BulkDataError {
+  row: number;
+  field?: string;
+  message: string;
+  value?: any;
+}
+
+export interface BulkDataWarning {
+  row: number;
+  field?: string;
+  message: string;
+  value?: any;
+}
+
+export interface BulkBatchProgress {
+  batchId: string;
+  status: BulkBatchStatus;
+  totalCount: number;
+  processedCount: number;
+  successCount: number;
+  failedCount: number;
+  progressPercentage: number;
+  estimatedCompletionTime?: string;
+  currentItem?: string;
+  errorLog?: any;
+}
+
+export interface BulkProcessingResult {
+  batchId: string;
+  success: boolean;
+  totalProcessed: number;
+  successfullyCreated: number;
+  failed: number;
+  errors: BulkDataError[];
+}
+
+export interface BulkItemStats {
+  total: number;
+  pending: number;
+  processing: number;
+  success: number;
+  failed: number;
+  skipped: number;
+}
+
+export interface BulkStats {
+  totalBatches: number;
+  completedBatches: number;
+  processingBatches: number;
+  failedBatches: number;
+  totalQRCodes: number;
+  avgBatchSize: number;
+  successRate: number;
+}
+
+// Enums
+export type BulkTemplateType = 
+  | 'url_list' 
+  | 'vcard_bulk' 
+  | 'product_bulk' 
+  | 'event_tickets' 
+  | 'wifi_bulk' 
+  | 'csv_mapping'
+  | 'custom';
+
+export type BulkBatchStatus = 
+  | 'pending' 
+  | 'processing' 
+  | 'completed' 
+  | 'failed' 
+  | 'cancelled';
+
+export type BulkItemStatus = 
+  | 'pending' 
+  | 'processing' 
+  | 'success' 
+  | 'failed' 
+  | 'skipped';
+
+// CSV Processing Interface
+export interface ICsvProcessor {
+  parse(csvData: string): Promise<any[]>;
+  validate(data: any[], template?: BulkQRTemplate): Promise<BulkValidationResult>;
+  mapFields(data: any[], fieldMappings: Record<string, string>): any[];
+  applyDefaults(data: any[], defaultValues: Record<string, any>): any[];
 }

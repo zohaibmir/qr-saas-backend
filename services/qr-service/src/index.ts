@@ -10,6 +10,7 @@ import {
   QRCode, 
   CreateQRRequest,
   IQRService,
+  IBulkQRService,
   IHealthChecker,
   IDependencyContainer,
   AppError
@@ -64,9 +65,23 @@ class QRServiceApplication {
       const qrService = new QRService(qrRepository, qrGenerator, shortIdGenerator, this.logger);
       const { QRTemplateService } = require('./services/qr-template.service');
       const qrTemplateService = new QRTemplateService(this.logger, qrService);
+      
+      // Register bulk QR services
+      const { BulkQRRepository } = require('./repositories/bulk-qr.repository');
+      const { BulkQRService } = require('./services/bulk-qr.service');
+      const { CsvProcessor } = require('./utils/csv-processor');
+      
+      const bulkQRRepository = new BulkQRRepository(database, this.logger);
+      const csvProcessor = new CsvProcessor(this.logger);
+      const bulkQRService = new BulkQRService(bulkQRRepository, qrService, csvProcessor, this.logger);
+      
       const healthChecker = new HealthChecker(this.logger, this.container);
+      
       this.container.register('qrService', qrService);
       this.container.register('qrTemplateService', qrTemplateService);
+      this.container.register('bulkQRRepository', bulkQRRepository);
+      this.container.register('bulkQRService', bulkQRService);
+      this.container.register('csvProcessor', csvProcessor);
       this.container.register('healthChecker', healthChecker);
       
       this.logger.info('Clean architecture dependencies initialized', {
@@ -169,6 +184,9 @@ class QRServiceApplication {
     
     // Template routes
     this.setupTemplateRoutes();
+    
+    // Bulk QR routes
+    this.setupBulkQRRoutes();
 
     // 404 handler
     this.app.use('*', (req, res) => {
@@ -443,6 +461,19 @@ class QRServiceApplication {
         this.handleRouteError(error, res, 'TEMPLATE_VALIDATION_FAILED');
       }
     });
+  }
+
+  private setupBulkQRRoutes(): void {
+    try {
+      const bulkQRService = this.container.resolve<IBulkQRService>('bulkQRService');
+      const { BulkQRRoutes } = require('./routes/bulk-qr.routes');
+      const bulkQRRoutes = new BulkQRRoutes(bulkQRService);
+      
+      this.app.use('/bulk', bulkQRRoutes.getRouter());
+      this.logger.info('Bulk QR routes registered successfully');
+    } catch (error) {
+      this.logger.error('Failed to register Bulk QR routes', { error });
+    }
   }
 
   private setupDynamicQRRoutes(): void {

@@ -112,3 +112,6 @@ docs/api/
 # Postman generated files (if any)
 *.postman_globals
 *.postman_environment
+
+# GitHub Copilot instructions (keep local only)
+.github/copilot-instructions.md

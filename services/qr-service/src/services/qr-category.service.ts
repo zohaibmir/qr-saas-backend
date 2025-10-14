@@ -77,20 +77,32 @@ export class QRCategoryService implements IQRCategoryService {
       if (error instanceof ValidationError) {
         return {
           success: false,
-          error: `Validation error: ${error.message}`
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: `Validation error: ${error.message}`,
+            statusCode: 400
+          }
         };
       }
 
       if (error instanceof DatabaseError) {
         return {
           success: false,
-          error: `Database error: ${error.message}`
+          error: {
+            code: 'DATABASE_ERROR',
+            message: `Database error: ${error.message}`,
+            statusCode: 500
+          }
         };
       }
 
       return {
         success: false,
-        error: 'Failed to create category'
+        error: {
+          code: 'FAILED_TO_CREATE_CATEGORY',
+          message: 'Failed to create category',
+          statusCode: 500
+        }
       };
     }
   }
@@ -121,13 +133,21 @@ export class QRCategoryService implements IQRCategoryService {
       if (error instanceof NotFoundError) {
         return {
           success: false,
-          error: `Category not found: ${error.message}`
+          error: {
+            code: 'CATEGORY_NOT_FOUND',
+            message: `Category not found: ${error.message}`,
+            statusCode: 404
+          }
         };
       }
 
       return {
         success: false,
-        error: 'Failed to fetch category'
+        error: {
+          code: 'FAILED_TO_FETCH_CATEGORY',
+          message: 'Failed to fetch category',
+          statusCode: 500
+        }
       };
     }
   }
@@ -155,7 +175,11 @@ export class QRCategoryService implements IQRCategoryService {
 
       return {
         success: false,
-        error: 'Failed to fetch categories'
+        error: {
+          code: 'FAILED_TO_FETCH_CATEGORIES',
+          message: 'Failed to fetch categories',
+          statusCode: 500
+        }
       };
     }
   }
@@ -210,20 +234,32 @@ export class QRCategoryService implements IQRCategoryService {
       if (error instanceof ValidationError) {
         return {
           success: false,
-          error: 'Operation failed'
+          error: {
+          code: 'OPERATION_FAILED',
+          message: 'Operation failed',
+          statusCode: 500
+        }
         };
       }
 
       if (error instanceof NotFoundError) {
         return {
           success: false,
-          error: 'Operation failed'
+          error: {
+          code: 'OPERATION_FAILED',
+          message: 'Operation failed',
+          statusCode: 500
+        }
         };
       }
 
       return {
         success: false,
-        error: 'Failed to update category'
+        error: {
+          code: 'FAILED_TO_UPDATE_CATEGORY',
+          message: 'Failed to update category',
+          statusCode: 500
+        }
       };
     }
   }
@@ -283,20 +319,32 @@ export class QRCategoryService implements IQRCategoryService {
       if (error instanceof ValidationError) {
         return {
           success: false,
-          error: 'Operation failed'
+          error: {
+          code: 'OPERATION_FAILED',
+          message: 'Operation failed',
+          statusCode: 500
+        }
         };
       }
 
       if (error instanceof NotFoundError) {
         return {
           success: false,
-          error: 'Operation failed'
+          error: {
+          code: 'OPERATION_FAILED',
+          message: 'Operation failed',
+          statusCode: 500
+        }
         };
       }
 
       return {
         success: false,
-        error: 'Failed to delete category'
+        error: {
+          code: 'FAILED_TO_DELETE_CATEGORY',
+          message: 'Failed to delete category',
+          statusCode: 500
+        }
       };
     }
   }
@@ -332,7 +380,11 @@ export class QRCategoryService implements IQRCategoryService {
 
       return {
         success: false,
-        error: 'Failed to build category tree'
+        error: {
+          code: 'FAILED_TO_BUILD_CATEGORY_TREE',
+          message: 'Failed to build category tree',
+          statusCode: 500
+        }
       };
     }
   }
@@ -385,13 +437,21 @@ export class QRCategoryService implements IQRCategoryService {
       if (error instanceof ValidationError) {
         return {
           success: false,
-          error: 'Operation failed'
+          error: {
+          code: 'OPERATION_FAILED',
+          message: 'Operation failed',
+          statusCode: 500
+        }
         };
       }
 
       return {
         success: false,
-        error: 'Failed to move QR codes'
+        error: {
+          code: 'FAILED_TO_MOVE_QR_CODES',
+          message: 'Failed to move QR codes',
+          statusCode: 500
+        }
       };
     }
   }
@@ -432,7 +492,11 @@ export class QRCategoryService implements IQRCategoryService {
 
       return {
         success: false,
-        error: 'Failed to fetch category statistics'
+        error: {
+          code: 'FAILED_TO_FETCH_CATEGORY_STATISTICS',
+          message: 'Failed to fetch category statistics',
+          statusCode: 500
+        }
       };
     }
   }

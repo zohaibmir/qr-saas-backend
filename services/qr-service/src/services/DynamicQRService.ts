@@ -917,7 +917,12 @@ export class DynamicQRService implements IDynamicQRService {
       return {
         success: false,
         data: null,
-        error: error.message,
+        error: {
+          code: error.code || 'UNKNOWN_ERROR',
+          message: error.message,
+          statusCode: error.statusCode || 500,
+          details: error.details
+        },
         message
       };
     }
@@ -925,7 +930,11 @@ export class DynamicQRService implements IDynamicQRService {
     return {
       success: false,
       data: null,
-      error: 'Internal server error',
+      error: {
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Internal server error',
+          statusCode: 500
+        },
       message
     };
   }

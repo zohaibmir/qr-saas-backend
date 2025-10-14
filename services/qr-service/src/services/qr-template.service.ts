@@ -48,7 +48,11 @@ export class QRTemplateService implements IQRTemplateService {
       this.logger.error('Failed to fetch templates', error);
       return {
         success: false,
-        error: 'Failed to fetch templates'
+        error: {
+          code: 'FAILED_TO_FETCH_TEMPLATES',
+          message: 'Failed to fetch templates',
+          statusCode: 500
+        }
       };
     }
   }
@@ -78,13 +82,22 @@ export class QRTemplateService implements IQRTemplateService {
       if (error instanceof NotFoundError) {
         return {
           success: false,
-          error: error.message
+          error: {
+          code: error.code || 'UNKNOWN_ERROR',
+          message: error.message,
+          statusCode: error.statusCode || 500,
+          details: error.details
+        }
         };
       }
 
       return {
         success: false,
-        error: 'Failed to fetch template'
+        error: {
+          code: 'FAILED_TO_FETCH_TEMPLATE',
+          message: 'Failed to fetch template',
+          statusCode: 500
+        }
       };
     }
   }
@@ -111,7 +124,11 @@ export class QRTemplateService implements IQRTemplateService {
       this.logger.error('Failed to fetch templates by category', { category, error });
       return {
         success: false,
-        error: 'Failed to fetch templates by category'
+        error: {
+          code: 'FAILED_TO_FETCH_TEMPLATES_BY_CATEGORY',
+          message: 'Failed to fetch templates by category',
+          statusCode: 500
+        }
       };
     }
   }
@@ -175,13 +192,22 @@ export class QRTemplateService implements IQRTemplateService {
       if (error instanceof ValidationError || error instanceof NotFoundError) {
         return {
           success: false,
-          error: error.message
+          error: {
+          code: error.code || 'UNKNOWN_ERROR',
+          message: error.message,
+          statusCode: error.statusCode || 500,
+          details: error.details
+        }
         };
       }
 
       return {
         success: false,
-        error: 'Failed to create QR from template'
+        error: {
+          code: 'FAILED_TO_CREATE_QR_FROM_TEMPLATE',
+          message: 'Failed to create QR from template',
+          statusCode: 500
+        }
       };
     }
   }
