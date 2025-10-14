@@ -23,7 +23,8 @@ export class HealthChecker implements IHealthChecker {
         const dbStartTime = Date.now();
         
         // Test database connection with a simple query
-        await database.pool.query('SELECT 1');
+        // The database object IS the pool, not database.pool
+        await database.query('SELECT 1');
         
         dependencies.database = {
           status: 'healthy',

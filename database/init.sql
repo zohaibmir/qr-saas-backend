@@ -38,15 +38,18 @@ CREATE TABLE qr_codes (
 -- Scan Events for Analytics
 CREATE TABLE scan_events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    qr_code_id UUID NOT NULL REFERENCES qr_codes(id) ON DELETE CASCADE,
-    ip_hash VARCHAR(64),
+    qr_code_id VARCHAR(255) NOT NULL,
+    timestamp TIMESTAMP DEFAULT NOW(),
+    ip_address VARCHAR(64),
     user_agent TEXT,
-    platform VARCHAR(50),
-    browser VARCHAR(50),
     country VARCHAR(100),
+    region VARCHAR(100),
     city VARCHAR(100),
-    referrer TEXT,
-    scanned_at TIMESTAMP DEFAULT NOW()
+    latitude DECIMAL(10, 7),
+    longitude DECIMAL(10, 7),
+    platform VARCHAR(50),
+    device VARCHAR(50),
+    referrer TEXT
 );
 
 -- Daily Analytics Summary
@@ -106,7 +109,9 @@ CREATE INDEX idx_qr_codes_user_id ON qr_codes(user_id);
 CREATE INDEX idx_qr_codes_short_id ON qr_codes(short_id);
 CREATE INDEX idx_qr_codes_expires_at ON qr_codes(expires_at);
 CREATE INDEX idx_scan_events_qr_code_id ON scan_events(qr_code_id);
-CREATE INDEX idx_scan_events_scanned_at ON scan_events(scanned_at);
+CREATE INDEX idx_scan_events_timestamp ON scan_events(timestamp);
+CREATE INDEX idx_scan_events_country ON scan_events(country);
+CREATE INDEX idx_scan_events_platform ON scan_events(platform);
 CREATE INDEX idx_daily_analytics_qr_code_id ON daily_analytics(qr_code_id);
 CREATE INDEX idx_daily_analytics_date ON daily_analytics(date);
 
