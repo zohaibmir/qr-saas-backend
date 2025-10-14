@@ -9,11 +9,12 @@
 ✅ **QR Templates** - 5 production-ready templates with validation  
 ✅ **QR Categories** - Hierarchical organization with tree structure  
 ✅ **Bulk QR Generation** - CSV processing, batch management, progress tracking  
+✅ **Subscription Management** - Complete payment processing, plan management, billing  
 ✅ **API Documentation** - Full Swagger/OpenAPI 3.0 specification  
 ✅ **Testing Suite** - 70+ unit tests with integration testing  
 ✅ **Clean Architecture** - SOLID principles with dependency injection  
 
-**🚀 Current Status: Phase 2A - 100% Complete (4/4 features implemented)**  
+**🚀 Current Status: Phase 2B - 100% Complete (5/5 features implemented)**  
 
 ## 🏗️ Architecture
 
@@ -57,10 +58,10 @@ This platform follows a microservices architecture with clean code principles an
 - **Technology**: Express.js, JWT, Redis
 
 ### ✅ User Service (Port 3001) - **OPERATIONAL**
-- **Purpose**: User management, authentication, and authorization
-- **Features**: ✅ User creation, profile management, PostgreSQL persistence
-- **Status**: Database integration complete, end-to-end tested
-- **Technology**: Express.js, PostgreSQL, bcrypt, JWT
+- **Purpose**: User management, authentication, authorization, and subscription management
+- **Features**: ✅ User creation, profile management, subscription management, payment processing, PostgreSQL persistence
+- **Status**: Database integration complete, subscription system operational, end-to-end tested
+- **Technology**: Express.js, PostgreSQL, bcrypt, JWT, Stripe integration
 
 ### ✅ QR Service (Port 3002) - **OPERATIONAL**
 - **Purpose**: QR code generation, management, bulk processing, and redirect handling
@@ -258,9 +259,10 @@ notification_templates (id, name, type, content, created_at, updated_at)
 -- File Management
 file_uploads (id, user_id, original_name, stored_name, file_path, file_size, mime_type, upload_type, created_at)
 
--- Subscription System (Ready)
-subscription_plans (id, name, price, features, max_qr_codes, max_scans_per_month, created_at, updated_at)
-user_subscriptions (id, user_id, plan_id, status, started_at, expires_at, created_at, updated_at)
+-- Subscription System (Fully Operational)
+subscription_plans (id, name, description, price, billing_cycle, features, max_qr_codes, max_scans_per_month, stripe_price_id, is_active, display_order, created_at, updated_at)
+user_subscriptions (id, user_id, plan_id, stripe_subscription_id, status, current_period_start, current_period_end, trial_end, cancel_at_period_end, proration_amount, metadata, created_at, updated_at)
+subscription_usage (id, user_id, subscription_id, qr_codes_created, scans_this_period, period_start, period_end, created_at, updated_at)
 ```
 
 ## �🔧 Development
@@ -322,6 +324,18 @@ GET    /api/bulk/stats
 GET /api/analytics/qr/:id
 GET /api/analytics/user
 GET /api/analytics/export
+```
+
+#### Subscription Management
+```
+GET    /api/subscriptions/plans
+POST   /api/subscriptions/subscribe
+POST   /api/subscriptions/cancel
+POST   /api/subscriptions/reactivate
+GET    /api/subscriptions/current
+PUT    /api/subscriptions/update-payment
+GET    /api/subscriptions/billing-history
+GET    /api/subscriptions/usage
 ```
 
 #### File Management
@@ -428,11 +442,11 @@ SMTP_PASS=your-password
 - [x] ✅ Fixed service routing conflicts and port configurations
 - [x] ✅ Foreign key constraints and data integrity validation
 
-### Phase 4 (Enhancement) - **READY FOR DEVELOPMENT**
+### Phase 4 (Enhancement) - **IN PROGRESS**
+- [x] ✅ **Subscription management and billing with Stripe integration**
 - [ ] Advanced QR customization with design templates
 - [ ] Real-time analytics dashboard
 - [ ] JWT authentication implementation
-- [ ] Subscription management and billing
 - [ ] Performance optimization and caching
 - [ ] Security hardening and rate limiting
 
@@ -480,7 +494,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 | Service | Port | Status | Database | Key Features |
 |---------|------|--------|----------|--------------|
 | API Gateway | 3000 | ✅ Operational | Redis | Service routing, rate limiting |
-| User Service | 3001 | ✅ Operational | PostgreSQL | User CRUD, profile management |
+| User Service | 3001 | ✅ Operational | PostgreSQL | User CRUD, **subscription management**, Stripe billing |
 | QR Service | 3002 | ✅ Operational | PostgreSQL | QR generation, JSONB storage |
 | Analytics | 3003 | ✅ Operational | PostgreSQL | Scan tracking, analytics |
 | File Service | 3004 | ✅ Operational | PostgreSQL | File uploads, metadata |

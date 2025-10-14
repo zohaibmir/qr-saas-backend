@@ -399,7 +399,269 @@ Import the included Postman collection for comprehensive API testing.
           }
         }
       },
-      ...bulkQRSchemas
+      ...bulkQRSchemas,
+      SubscriptionPlan: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Unique plan identifier'
+          },
+          name: {
+            type: 'string',
+            description: 'Plan name',
+            example: 'Pro Plan'
+          },
+          description: {
+            type: 'string',
+            description: 'Plan description',
+            example: 'Perfect for growing businesses'
+          },
+          price: {
+            type: 'number',
+            description: 'Plan price in cents',
+            example: 2999
+          },
+          billingCycle: {
+            type: 'string',
+            enum: ['monthly', 'yearly'],
+            description: 'Billing cycle'
+          },
+          features: {
+            type: 'object',
+            description: 'Plan features (stored as JSONB)',
+            example: {
+              "custom_domains": true,
+              "advanced_analytics": true,
+              "priority_support": true
+            }
+          },
+          maxQrCodes: {
+            type: 'number',
+            description: 'Maximum QR codes allowed',
+            example: 1000
+          },
+          maxScansPerMonth: {
+            type: 'number',
+            description: 'Maximum scans per month',
+            example: 50000
+          },
+          stripePriceId: {
+            type: 'string',
+            description: 'Stripe price ID for billing'
+          },
+          isActive: {
+            type: 'boolean',
+            description: 'Whether plan is active'
+          },
+          displayOrder: {
+            type: 'number',
+            description: 'Display order for sorting'
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time'
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time'
+          }
+        }
+      },
+      UserSubscription: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Unique subscription identifier'
+          },
+          userId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'User ID'
+          },
+          planId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Subscription plan ID'
+          },
+          stripeSubscriptionId: {
+            type: 'string',
+            description: 'Stripe subscription ID'
+          },
+          status: {
+            type: 'string',
+            enum: ['active', 'canceled', 'past_due', 'unpaid', 'trialing'],
+            description: 'Subscription status'
+          },
+          currentPeriodStart: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Current billing period start'
+          },
+          currentPeriodEnd: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Current billing period end'
+          },
+          trialEnd: {
+            type: 'string',
+            format: 'date-time',
+            nullable: true,
+            description: 'Trial period end date'
+          },
+          cancelAtPeriodEnd: {
+            type: 'boolean',
+            description: 'Whether subscription will cancel at period end'
+          },
+          prorationAmount: {
+            type: 'number',
+            nullable: true,
+            description: 'Proration amount for plan changes'
+          },
+          metadata: {
+            type: 'object',
+            description: 'Additional subscription metadata'
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time'
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time'
+          }
+        }
+      },
+      SubscriptionUsage: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Unique usage record identifier'
+          },
+          userId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'User ID'
+          },
+          subscriptionId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Subscription ID'
+          },
+          qrCodesCreated: {
+            type: 'number',
+            description: 'Number of QR codes created this period'
+          },
+          scansThisPeriod: {
+            type: 'number',
+            description: 'Number of scans this period'
+          },
+          periodStart: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Usage period start'
+          },
+          periodEnd: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Usage period end'
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time'
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time'
+          }
+        }
+      },
+      SubscribeRequest: {
+        type: 'object',
+        required: ['planId', 'paymentMethodId'],
+        properties: {
+          planId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Subscription plan ID'
+          },
+          paymentMethodId: {
+            type: 'string',
+            description: 'Stripe payment method ID'
+          },
+          trialPeriodDays: {
+            type: 'number',
+            minimum: 0,
+            maximum: 365,
+            description: 'Trial period in days (optional)'
+          }
+        }
+      },
+      UpdatePaymentMethodRequest: {
+        type: 'object',
+        required: ['paymentMethodId'],
+        properties: {
+          paymentMethodId: {
+            type: 'string',
+            description: 'New Stripe payment method ID'
+          }
+        }
+      },
+      BillingHistoryResponse: {
+        type: 'object',
+        properties: {
+          invoices: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                id: {
+                  type: 'string',
+                  description: 'Stripe invoice ID'
+                },
+                amount: {
+                  type: 'number',
+                  description: 'Invoice amount in cents'
+                },
+                currency: {
+                  type: 'string',
+                  description: 'Currency code'
+                },
+                status: {
+                  type: 'string',
+                  description: 'Invoice status'
+                },
+                created: {
+                  type: 'number',
+                  description: 'Creation timestamp'
+                },
+                paidAt: {
+                  type: 'number',
+                  nullable: true,
+                  description: 'Payment timestamp'
+                },
+                invoiceUrl: {
+                  type: 'string',
+                  description: 'Invoice URL'
+                }
+              }
+            }
+          },
+          hasMore: {
+            type: 'boolean',
+            description: 'Whether there are more invoices'
+          },
+          total: {
+            type: 'number',
+            description: 'Total number of invoices'
+          }
+        }
+      }
     }
   },
   tags: [
@@ -438,6 +700,10 @@ Import the included Postman collection for comprehensive API testing.
     {
       name: 'Bulk QR Generation',
       description: 'Bulk QR code generation operations with CSV processing, batch management, and progress tracking'
+    },
+    {
+      name: 'Subscriptions',
+      description: 'Subscription management, billing, and payment processing with Stripe integration'
     }
   ]
 };
@@ -448,6 +714,7 @@ const options = {
     './src/routes/*.ts',
     './src/middleware/*.ts',
     './src/docs/*.ts',
+    './src/docs/subscription-routes.ts',
     './src/index.ts',
     './src/app.ts'
   ]
