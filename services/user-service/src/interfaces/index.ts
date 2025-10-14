@@ -31,7 +31,7 @@ export interface User {
   email: string;
   username: string;
   fullName?: string;
-  subscription: 'free' | 'premium' | 'enterprise';
+  subscription: 'free' | 'pro' | 'business' | 'enterprise';
   isEmailVerified: boolean;
   avatar?: string;
   preferences?: UserPreferences;
@@ -59,7 +59,7 @@ export interface CreateUserRequest {
   username: string;
   password: string;
   fullName?: string;
-  subscription?: 'free' | 'premium' | 'enterprise';
+  subscription?: 'free' | 'pro' | 'business' | 'enterprise';
 }
 
 export interface LoginRequest {
