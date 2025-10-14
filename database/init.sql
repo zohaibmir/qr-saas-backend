@@ -185,6 +185,9 @@ CREATE INDEX idx_qr_codes_user_id ON qr_codes(user_id);
 CREATE INDEX idx_qr_codes_category_id ON qr_codes(category_id);
 CREATE INDEX idx_qr_codes_short_id ON qr_codes(short_id);
 CREATE INDEX idx_qr_codes_expires_at ON qr_codes(expires_at);
+CREATE INDEX idx_qr_codes_design_config_gin ON qr_codes USING GIN (design_config);
+CREATE INDEX idx_qr_codes_design_config_size ON qr_codes ((design_config->>'size'));
+CREATE INDEX idx_qr_codes_design_config_pattern ON qr_codes ((design_config->>'pattern'));
 CREATE INDEX idx_scan_events_qr_code_id ON scan_events(qr_code_id);
 CREATE INDEX idx_scan_events_timestamp ON scan_events(timestamp);
 CREATE INDEX idx_scan_events_country ON scan_events(country);
@@ -213,19 +216,19 @@ INSERT INTO subscription_plans (name, price, qr_limit, analytics_retention_days,
 INSERT INTO qr_bulk_templates (name, description, template_type, field_mappings, default_values, validation_rules, qr_settings, is_system_template) VALUES 
 ('URL List', 'Bulk create QR codes from a list of URLs', 'url_list', 
  '{"name": "name", "url": "url", "description": "description"}',
- '{"type": "url", "design_config": {"foregroundColor": "#000000", "backgroundColor": "#ffffff", "size": 200}}',
+ '{"type": "url", "design_config": {"size": 300, "errorCorrectionLevel": "M", "foregroundColor": "#000000", "backgroundColor": "#ffffff", "pattern": "square", "margin": 4}}',
  '{"url": {"required": true, "pattern": "^https?://.+"}, "name": {"required": true, "maxLength": 255}}',
  '{"errorCorrectionLevel": "M", "format": "png"}', true),
 
 ('Business Cards', 'Bulk create vCard QR codes for business contacts', 'vcard_bulk',
  '{"name": "name", "firstName": "first_name", "lastName": "last_name", "email": "email", "phone": "phone", "company": "company", "title": "title"}',
- '{"type": "vcard", "design_config": {"foregroundColor": "#1f2937", "backgroundColor": "#ffffff", "size": 200}}',
+ '{"type": "vcard", "design_config": {"size": 350, "errorCorrectionLevel": "M", "foregroundColor": "#1f2937", "backgroundColor": "#ffffff", "pattern": "rounded", "frame": {"style": "rounded", "width": 10, "color": "#e5e7eb"}}}',
  '{"firstName": {"required": true}, "lastName": {"required": true}, "email": {"pattern": "^[^@]+@[^@]+\\.[^@]+$"}}',
  '{"errorCorrectionLevel": "M", "format": "png"}', true),
 
 ('Product Catalog', 'Bulk create QR codes for product listings', 'product_bulk',
  '{"name": "product_name", "sku": "sku", "url": "product_url", "price": "price", "category": "category"}',
- '{"type": "url", "design_config": {"foregroundColor": "#059669", "backgroundColor": "#ffffff", "size": 200}}',
+ '{"type": "url", "design_config": {"size": 400, "errorCorrectionLevel": "H", "foregroundColor": "#059669", "backgroundColor": "#ffffff", "pattern": "dots", "eyePattern": {"outer": "rounded", "inner": "circle"}, "gradient": {"type": "linear", "colors": ["#059669", "#10b981"]}}}',
  '{"product_name": {"required": true}, "sku": {"required": true}, "product_url": {"required": true, "pattern": "^https?://.+"}}',
  '{"errorCorrectionLevel": "M", "format": "png"}', true),
 

@@ -151,24 +151,259 @@ Import the included Postman collection for comprehensive API testing.
           },
           designConfig: {
             type: 'object',
-            description: 'QR code design configuration (stored as JSONB)',
+            description: 'Advanced QR code design configuration with subscription-tier features',
             properties: {
               size: {
                 type: 'number',
                 minimum: 100,
-                maximum: 1000,
-                description: 'QR code size in pixels'
+                maximum: 1200,
+                description: 'QR code size in pixels (max varies by subscription tier)'
               },
               format: {
                 type: 'string',
-                enum: ['png', 'jpg', 'svg'],
-                description: 'Image format'
+                enum: ['png', 'svg', 'pdf', 'webp'],
+                description: 'Output image format'
               },
               errorCorrectionLevel: {
                 type: 'string',
                 enum: ['L', 'M', 'Q', 'H'],
-                description: 'Error correction level'
+                description: 'Error correction level (L=Low, M=Medium, Q=Quartile, H=High)'
+              },
+              margin: {
+                type: 'number',
+                minimum: 0,
+                maximum: 20,
+                description: 'Margin around QR code in modules'
+              },
+              color: {
+                type: 'object',
+                description: 'Basic color configuration',
+                properties: {
+                  foreground: {
+                    type: 'string',
+                    pattern: '^#[0-9A-Fa-f]{6}$',
+                    description: 'Foreground color (hex format)'
+                  },
+                  background: {
+                    type: 'string',
+                    pattern: '^#[0-9A-Fa-f]{6}$',
+                    description: 'Background color (hex format)'
+                  }
+                }
+              },
+              gradient: {
+                type: 'object',
+                description: 'Gradient color configuration (Business tier+)',
+                properties: {
+                  type: {
+                    type: 'string',
+                    enum: ['linear', 'radial'],
+                    description: 'Gradient type'
+                  },
+                  colors: {
+                    type: 'array',
+                    items: {
+                      type: 'string',
+                      pattern: '^#[0-9A-Fa-f]{6}$'
+                    },
+                    minItems: 2,
+                    description: 'Array of gradient colors in hex format'
+                  },
+                  direction: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 360,
+                    description: 'Gradient direction in degrees (linear only)'
+                  }
+                }
+              },
+              logo: {
+                type: 'object',
+                description: 'Logo overlay configuration (Pro tier+)',
+                properties: {
+                  url: {
+                    type: 'string',
+                    format: 'uri',
+                    description: 'Logo image URL'
+                  },
+                  size: {
+                    type: 'number',
+                    minimum: 5,
+                    maximum: 50,
+                    description: 'Logo size as percentage of QR code size'
+                  },
+                  position: {
+                    type: 'string',
+                    enum: ['center', 'corner'],
+                    description: 'Logo position'
+                  },
+                  borderRadius: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 50,
+                    description: 'Logo border radius in pixels'
+                  },
+                  opacity: {
+                    type: 'number',
+                    minimum: 0.1,
+                    maximum: 1.0,
+                    description: 'Logo opacity (0.1 to 1.0)'
+                  }
+                }
+              },
+              pattern: {
+                type: 'string',
+                enum: ['square', 'dots', 'rounded', 'diamond', 'circular'],
+                description: 'QR code pattern style (availability varies by tier)'
+              },
+              cornerRadius: {
+                type: 'number',
+                minimum: 0,
+                maximum: 10,
+                description: 'Corner radius for rounded patterns'
+              },
+              eyePattern: {
+                type: 'object',
+                description: 'Eye pattern customization (Business tier+)',
+                properties: {
+                  outer: {
+                    type: 'string',
+                    enum: ['square', 'rounded', 'circle', 'diamond'],
+                    description: 'Outer eye pattern'
+                  },
+                  inner: {
+                    type: 'string',
+                    enum: ['square', 'rounded', 'circle', 'diamond'],
+                    description: 'Inner eye pattern'
+                  },
+                  color: {
+                    type: 'string',
+                    pattern: '^#[0-9A-Fa-f]{6}$',
+                    description: 'Eye pattern color'
+                  }
+                }
+              },
+              frame: {
+                type: 'object',
+                description: 'Frame design configuration (Pro tier+)',
+                properties: {
+                  style: {
+                    type: 'string',
+                    enum: ['none', 'square', 'rounded', 'circle', 'banner'],
+                    description: 'Frame style'
+                  },
+                  text: {
+                    type: 'string',
+                    maxLength: 50,
+                    description: 'Text to display in frame'
+                  },
+                  textColor: {
+                    type: 'string',
+                    pattern: '^#[0-9A-Fa-f]{6}$',
+                    description: 'Frame text color'
+                  },
+                  color: {
+                    type: 'string',
+                    pattern: '^#[0-9A-Fa-f]{6}$',
+                    description: 'Frame background color'
+                  },
+                  width: {
+                    type: 'number',
+                    minimum: 5,
+                    maximum: 50,
+                    description: 'Frame width in pixels'
+                  },
+                  padding: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 20,
+                    description: 'Frame padding in pixels'
+                  }
+                }
+              },
+              backgroundTransparent: {
+                type: 'boolean',
+                description: 'Enable transparent background (Pro tier+)'
+              },
+              backgroundImage: {
+                type: 'object',
+                description: 'Background image configuration (Enterprise tier)',
+                properties: {
+                  url: {
+                    type: 'string',
+                    format: 'uri',
+                    description: 'Background image URL'
+                  },
+                  opacity: {
+                    type: 'number',
+                    minimum: 0.1,
+                    maximum: 1.0,
+                    description: 'Background image opacity'
+                  },
+                  blend: {
+                    type: 'string',
+                    enum: ['normal', 'multiply', 'overlay'],
+                    description: 'Background image blend mode'
+                  }
+                }
+              },
+              shadow: {
+                type: 'object',
+                description: 'Shadow effect configuration (Enterprise tier)',
+                properties: {
+                  color: {
+                    type: 'string',
+                    pattern: '^#[0-9A-Fa-f]{6}$',
+                    description: 'Shadow color'
+                  },
+                  blur: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 50,
+                    description: 'Shadow blur radius'
+                  },
+                  offsetX: {
+                    type: 'number',
+                    minimum: -20,
+                    maximum: 20,
+                    description: 'Shadow horizontal offset'
+                  },
+                  offsetY: {
+                    type: 'number',
+                    minimum: -20,
+                    maximum: 20,
+                    description: 'Shadow vertical offset'
+                  }
+                }
+              },
+              quality: {
+                type: 'number',
+                minimum: 10,
+                maximum: 100,
+                description: 'Output image quality (10-100)'
               }
+            },
+            example: {
+              size: 400,
+              errorCorrectionLevel: 'M',
+              pattern: 'rounded',
+              color: {
+                foreground: '#1f2937',
+                background: '#ffffff'
+              },
+              logo: {
+                url: 'https://example.com/logo.png',
+                size: 20,
+                position: 'center'
+              },
+              frame: {
+                style: 'rounded',
+                text: 'Scan Me!',
+                color: '#e5e7eb',
+                width: 15
+              },
+              backgroundTransparent: false,
+              quality: 90
             }
           },
           targetUrl: {
@@ -660,6 +895,91 @@ Import the included Postman collection for comprehensive API testing.
             type: 'number',
             description: 'Total number of invoices'
           }
+        }
+      },
+      CustomizationValidationResult: {
+        type: 'object',
+        description: 'Result of QR customization validation',
+        properties: {
+          isValid: {
+            type: 'boolean',
+            description: 'Whether the customization is valid for the subscription tier'
+          },
+          errors: {
+            type: 'array',
+            items: {
+              type: 'string'
+            },
+            description: 'Array of validation error messages'
+          },
+          warnings: {
+            type: 'array',
+            items: {
+              type: 'string'
+            },
+            description: 'Array of validation warning messages'
+          }
+        },
+        example: {
+          isValid: false,
+          errors: [
+            'Logo integration not available for free tier. Upgrade to Pro or higher.',
+            'QR code size cannot exceed 300px for free tier'
+          ],
+          warnings: [
+            'Consider upgrading to unlock advanced customization features'
+          ]
+        }
+      },
+      CustomizationLimits: {
+        type: 'object',
+        description: 'Customization limits for a subscription tier',
+        properties: {
+          maxSize: {
+            type: 'number',
+            description: 'Maximum QR code size in pixels'
+          },
+          allowLogo: {
+            type: 'boolean',
+            description: 'Whether logo overlay is allowed'
+          },
+          allowFrames: {
+            type: 'boolean',
+            description: 'Whether frame designs are allowed'
+          },
+          allowPatterns: {
+            type: 'array',
+            items: {
+              type: 'string'
+            },
+            description: 'Array of allowed pattern types'
+          },
+          allowEyePatterns: {
+            type: 'boolean',
+            description: 'Whether eye pattern customization is allowed'
+          },
+          allowTransparency: {
+            type: 'boolean',
+            description: 'Whether transparent backgrounds are allowed'
+          },
+          allowGradients: {
+            type: 'boolean',
+            description: 'Whether gradient colors are allowed'
+          },
+          allowEffects: {
+            type: 'boolean',
+            description: 'Whether advanced effects (shadows, background images) are allowed'
+          }
+        },
+        example: {
+          maxSize: 500,
+          allowLogo: true,
+          allowFrames: true,
+          allowPatterns: ['square', 'rounded', 'dots'],
+          allowEyePatterns: false,
+          allowTransparency: true,
+          allowGradients: false,
+          allowEffects: false
         }
       }
     }

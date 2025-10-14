@@ -81,14 +81,68 @@ export interface QRDesignConfig {
   format?: ImageFormat;
   errorCorrectionLevel?: 'L' | 'M' | 'Q' | 'H';
   margin?: number;
+  
+  // Enhanced Color Configuration
   color?: {
     foreground?: string;
     background?: string;
   };
+  gradient?: {
+    type: 'linear' | 'radial';
+    colors: string[];
+    direction?: number;
+  };
+  
+  // Advanced Logo Integration
   logo?: {
     url?: string;
+    buffer?: Buffer;
     size?: number;
+    position?: 'center' | 'corner';
+    borderRadius?: number;
+    opacity?: number;
   };
+  
+  // Pattern and Shape Variations
+  pattern?: 'square' | 'dots' | 'rounded' | 'diamond' | 'circular';
+  cornerRadius?: number;
+  
+  // Eye Pattern Customization
+  eyePattern?: {
+    outer: 'square' | 'rounded' | 'circle' | 'diamond';
+    inner: 'square' | 'rounded' | 'circle' | 'diamond';
+    color?: string;
+  };
+  
+  // Frame Design
+  frame?: {
+    style: 'none' | 'square' | 'rounded' | 'circle' | 'banner';
+    text?: string;
+    textColor?: string;
+    color?: string;
+    width?: number;
+    padding?: number;
+  };
+  
+  // Background Options
+  backgroundTransparent?: boolean;
+  backgroundImage?: {
+    url?: string;
+    buffer?: Buffer;
+    opacity?: number;
+    blend?: 'normal' | 'multiply' | 'overlay';
+  };
+  
+  // Advanced Effects
+  shadow?: {
+    color: string;
+    blur: number;
+    offsetX: number;
+    offsetY: number;
+  };
+  
+  // Output Quality
+  quality?: number;
 }
 
 export interface QRValidityConfig {
@@ -110,6 +164,88 @@ export interface QRGenerationOptions {
     light?: string;
   };
   width?: number;
+  type?: 'png' | 'svg';
+  rendererOpts?: {
+    quality?: number;
+  };
+}
+
+export interface IImageProcessor {
+  overlayLogo(qrBuffer: Buffer, logoBuffer: Buffer, options: LogoOverlayOptions): Promise<Buffer>;
+  addFrame(imageBuffer: Buffer, frameOptions: FrameOptions): Promise<Buffer>;
+  applyPattern(qrBuffer: Buffer, pattern: PatternOptions): Promise<Buffer>;
+  applyEyePattern(qrBuffer: Buffer, eyeOptions: EyePatternOptions): Promise<Buffer>;
+  makeTransparent(imageBuffer: Buffer, backgroundColor?: string): Promise<Buffer>;
+  applyEffects(imageBuffer: Buffer, effects: EffectOptions): Promise<Buffer>;
+}
+
+export interface LogoOverlayOptions {
+  size: number;
+  position: 'center' | 'corner';
+  borderRadius?: number;
+  opacity?: number;
+}
+
+export interface FrameOptions {
+  style: 'none' | 'square' | 'rounded' | 'circle' | 'banner';
+  text?: string;
+  textColor?: string;
+  color?: string;
+  width?: number;
+  padding?: number;
+}
+
+export interface PatternOptions {
+  type: 'square' | 'dots' | 'rounded' | 'diamond' | 'circular';
+  cornerRadius?: number;
+}
+
+export interface EyePatternOptions {
+  outer: 'square' | 'rounded' | 'circle' | 'diamond';
+  inner: 'square' | 'rounded' | 'circle' | 'diamond';
+  color?: string;
+}
+
+export interface EffectOptions {
+  gradient?: {
+    type: 'linear' | 'radial';
+    colors: string[];
+    direction?: number;
+  };
+  shadow?: {
+    color: string;
+    blur: number;
+    offsetX: number;
+    offsetY: number;
+  };
+  backgroundImage?: {
+    buffer: Buffer;
+    opacity?: number;
+    blend?: 'normal' | 'multiply' | 'overlay';
+  };
+}
+
+export interface IQRCustomizationService {
+  validateCustomization(designConfig: QRDesignConfig, subscriptionTier: string): Promise<CustomizationValidationResult>;
+  getCustomizationLimits(subscriptionTier: string): CustomizationLimits;
+  applyTierRestrictions(designConfig: QRDesignConfig, subscriptionTier: string): QRDesignConfig;
+}
+
+export interface CustomizationLimits {
+  maxSize: number;
+  allowLogo: boolean;
+  allowFrames: boolean;
+  allowPatterns: string[];
+  allowEyePatterns: boolean;
+  allowTransparency: boolean;
+  allowGradients: boolean;
+  allowEffects: boolean;
+}
+
+export interface CustomizationValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
 }
 
 export interface PaginationOptions {
