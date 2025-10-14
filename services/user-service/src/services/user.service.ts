@@ -1,9 +1,12 @@
 import { 
   IUserService,
   IUserRepository,
+  ISubscriptionService,
   User,
   CreateUserRequest,
   UpdateUserRequest,
+  UserSubscription,
+  SubscriptionUsage,
   ServiceResponse,
   PaginationOptions,
   ValidationError,
@@ -17,7 +20,8 @@ export class UserService implements IUserService {
   constructor(
     private userRepository: IUserRepository,
     private passwordHasher: IPasswordHasher,
-    private logger: ILogger
+    private logger: ILogger,
+    private subscriptionService?: ISubscriptionService
   ) {}
 
   async createUser(userData: CreateUserRequest): Promise<ServiceResponse<User>> {
@@ -58,14 +62,11 @@ export class UserService implements IUserService {
 
       return {
         success: true,
-        data: user,
-        metadata: {
-          timestamp: new Date().toISOString()
-        }
+        data: user
       };
     } catch (error) {
       this.logger.error('Failed to create user', { 
-        email: userData.email,
+        userData: { email: userData.email, username: userData.username },
         error: error instanceof Error ? error.message : 'Unknown error' 
       });
 
@@ -75,8 +76,7 @@ export class UserService implements IUserService {
           error: {
             code: error.code,
             message: error.message,
-            statusCode: error.statusCode,
-            details: error.details
+            statusCode: error.statusCode
           }
         };
       }
@@ -109,14 +109,11 @@ export class UserService implements IUserService {
 
       return {
         success: true,
-        data: user,
-        metadata: {
-          timestamp: new Date().toISOString()
-        }
+        data: user
       };
     } catch (error) {
       this.logger.error('Failed to get user by ID', { 
-        userId: id,
+        id,
         error: error instanceof Error ? error.message : 'Unknown error' 
       });
 
@@ -126,8 +123,7 @@ export class UserService implements IUserService {
           error: {
             code: error.code,
             message: error.message,
-            statusCode: error.statusCode,
-            details: error.details
+            statusCode: error.statusCode
           }
         };
       }
@@ -160,10 +156,7 @@ export class UserService implements IUserService {
 
       return {
         success: true,
-        data: user,
-        metadata: {
-          timestamp: new Date().toISOString()
-        }
+        data: user
       };
     } catch (error) {
       this.logger.error('Failed to get user by email', { 
@@ -177,8 +170,7 @@ export class UserService implements IUserService {
           error: {
             code: error.code,
             message: error.message,
-            statusCode: error.statusCode,
-            details: error.details
+            statusCode: error.statusCode
           }
         };
       }
@@ -211,10 +203,7 @@ export class UserService implements IUserService {
 
       return {
         success: true,
-        data: user,
-        metadata: {
-          timestamp: new Date().toISOString()
-        }
+        data: user
       };
     } catch (error) {
       this.logger.error('Failed to get user by username', { 
@@ -228,8 +217,7 @@ export class UserService implements IUserService {
           error: {
             code: error.code,
             message: error.message,
-            statusCode: error.statusCode,
-            details: error.details
+            statusCode: error.statusCode
           }
         };
       }
@@ -277,10 +265,7 @@ export class UserService implements IUserService {
 
       return {
         success: true,
-        data: updatedUser,
-        metadata: {
-          timestamp: new Date().toISOString()
-        }
+        data: updatedUser
       };
     } catch (error) {
       this.logger.error('Failed to update user', { 
@@ -294,8 +279,7 @@ export class UserService implements IUserService {
           error: {
             code: error.code,
             message: error.message,
-            statusCode: error.statusCode,
-            details: error.details
+            statusCode: error.statusCode
           }
         };
       }
@@ -331,10 +315,7 @@ export class UserService implements IUserService {
       this.logger.info('User deleted successfully', { userId: id });
 
       return {
-        success: true,
-        metadata: {
-          timestamp: new Date().toISOString()
-        }
+        success: true
       };
     } catch (error) {
       this.logger.error('Failed to delete user', { 
@@ -348,8 +329,7 @@ export class UserService implements IUserService {
           error: {
             code: error.code,
             message: error.message,
-            statusCode: error.statusCode,
-            details: error.details
+            statusCode: error.statusCode
           }
         };
       }
@@ -379,18 +359,7 @@ export class UserService implements IUserService {
 
       return {
         success: true,
-        data: users,
-        metadata: {
-          timestamp: new Date().toISOString(),
-          pagination: {
-            page: pagination.page,
-            limit: pagination.limit,
-            total,
-            totalPages: Math.ceil(total / pagination.limit),
-            hasNext: pagination.page * pagination.limit < total,
-            hasPrev: pagination.page > 1
-          }
-        }
+        data: users
       };
     } catch (error) {
       this.logger.error('Failed to get users', { 
@@ -403,8 +372,7 @@ export class UserService implements IUserService {
           error: {
             code: error.code,
             message: error.message,
-            statusCode: error.statusCode,
-            details: error.details
+            statusCode: error.statusCode
           }
         };
       }
@@ -440,10 +408,7 @@ export class UserService implements IUserService {
       this.logger.info('Email verified successfully', { userId });
 
       return {
-        success: true,
-        metadata: {
-          timestamp: new Date().toISOString()
-        }
+        success: true
       };
     } catch (error) {
       this.logger.error('Failed to verify email', { 
@@ -457,8 +422,7 @@ export class UserService implements IUserService {
           error: {
             code: error.code,
             message: error.message,
-            statusCode: error.statusCode,
-            details: error.details
+            statusCode: error.statusCode
           }
         };
       }
@@ -509,10 +473,7 @@ export class UserService implements IUserService {
       this.logger.info('Password changed successfully', { userId });
 
       return {
-        success: true,
-        metadata: {
-          timestamp: new Date().toISOString()
-        }
+        success: true
       };
     } catch (error) {
       this.logger.error('Failed to change password', { 
@@ -526,8 +487,7 @@ export class UserService implements IUserService {
           error: {
             code: error.code,
             message: error.message,
-            statusCode: error.statusCode,
-            details: error.details
+            statusCode: error.statusCode
           }
         };
       }
@@ -592,5 +552,233 @@ export class UserService implements IUserService {
     if (pagination.limit < 1 || pagination.limit > 100) {
       throw new ValidationError('Limit must be between 1 and 100');
     }
+  }
+
+  // ===============================================
+  // SUBSCRIPTION MANAGEMENT METHODS
+  // ===============================================
+  // These methods delegate to the subscription service
+
+  async getUserSubscription(userId: string): Promise<ServiceResponse<UserSubscription>> {
+    if (!this.subscriptionService) {
+      return {
+        success: false,
+        error: {
+          code: 'SUBSCRIPTION_SERVICE_UNAVAILABLE',
+          message: 'Subscription service is not available',
+          statusCode: 503
+        }
+      };
+    }
+
+    return this.subscriptionService.getSubscriptionByUserId(userId);
+  }
+
+  async upgradeSubscription(userId: string, planId: string): Promise<ServiceResponse<UserSubscription>> {
+    if (!this.subscriptionService) {
+      return {
+        success: false,
+        error: {
+          code: 'SUBSCRIPTION_SERVICE_UNAVAILABLE',
+          message: 'Subscription service is not available',
+          statusCode: 503
+        }
+      };
+    }
+
+    try {
+      // Get current subscription
+      const currentSubscription = await this.subscriptionService.getSubscriptionByUserId(userId);
+      if (!currentSubscription.success || !currentSubscription.data) {
+        return {
+          success: false,
+          error: {
+            code: 'NO_SUBSCRIPTION_FOUND',
+            message: 'User does not have an active subscription',
+            statusCode: 404
+          }
+        };
+      }
+
+      // Validate upgrade
+      const validation = await this.subscriptionService.validatePlanUpgrade(
+        currentSubscription.data.planId, 
+        planId
+      );
+      
+      if (!validation.success || !validation.data) {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_UPGRADE',
+            message: 'The selected plan is not a valid upgrade',
+            statusCode: 400
+          }
+        };
+      }
+
+      // Update subscription
+      return this.subscriptionService.updateSubscription(currentSubscription.data.id, { planId });
+      
+    } catch (error) {
+      this.logger.error('Failed to upgrade subscription', { userId, planId, error });
+      return {
+        success: false,
+        error: {
+          code: 'SUBSCRIPTION_UPGRADE_FAILED',
+          message: 'Failed to upgrade subscription',
+          statusCode: 500
+        }
+      };
+    }
+  }
+
+  async downgradeSubscription(userId: string, planId: string): Promise<ServiceResponse<UserSubscription>> {
+    if (!this.subscriptionService) {
+      return {
+        success: false,
+        error: {
+          code: 'SUBSCRIPTION_SERVICE_UNAVAILABLE',
+          message: 'Subscription service is not available',
+          statusCode: 503
+        }
+      };
+    }
+
+    try {
+      // Get current subscription
+      const currentSubscription = await this.subscriptionService.getSubscriptionByUserId(userId);
+      if (!currentSubscription.success || !currentSubscription.data) {
+        return {
+          success: false,
+          error: {
+            code: 'NO_SUBSCRIPTION_FOUND',
+            message: 'User does not have an active subscription',
+            statusCode: 404
+          }
+        };
+      }
+
+      // Update subscription (downgrade doesn't require validation like upgrade)
+      return this.subscriptionService.updateSubscription(currentSubscription.data.id, { planId });
+      
+    } catch (error) {
+      this.logger.error('Failed to downgrade subscription', { userId, planId, error });
+      return {
+        success: false,
+        error: {
+          code: 'SUBSCRIPTION_DOWNGRADE_FAILED',
+          message: 'Failed to downgrade subscription',
+          statusCode: 500
+        }
+      };
+    }
+  }
+
+  async cancelSubscription(userId: string, cancelAtPeriodEnd?: boolean): Promise<ServiceResponse<UserSubscription>> {
+    if (!this.subscriptionService) {
+      return {
+        success: false,
+        error: {
+          code: 'SUBSCRIPTION_SERVICE_UNAVAILABLE',
+          message: 'Subscription service is not available',
+          statusCode: 503
+        }
+      };
+    }
+
+    try {
+      // Get current subscription
+      const currentSubscription = await this.subscriptionService.getSubscriptionByUserId(userId);
+      if (!currentSubscription.success || !currentSubscription.data) {
+        return {
+          success: false,
+          error: {
+            code: 'NO_SUBSCRIPTION_FOUND',
+            message: 'User does not have an active subscription',
+            statusCode: 404
+          }
+        };
+      }
+
+      // Cancel subscription
+      return this.subscriptionService.cancelSubscription(currentSubscription.data.id, cancelAtPeriodEnd);
+      
+    } catch (error) {
+      this.logger.error('Failed to cancel subscription', { userId, cancelAtPeriodEnd, error });
+      return {
+        success: false,
+        error: {
+          code: 'SUBSCRIPTION_CANCELLATION_FAILED',
+          message: 'Failed to cancel subscription',
+          statusCode: 500
+        }
+      };
+    }
+  }
+
+  async renewSubscription(userId: string): Promise<ServiceResponse<UserSubscription>> {
+    if (!this.subscriptionService) {
+      return {
+        success: false,
+        error: {
+          code: 'SUBSCRIPTION_SERVICE_UNAVAILABLE',
+          message: 'Subscription service is not available',
+          statusCode: 503
+        }
+      };
+    }
+
+    try {
+      // Get current subscription
+      const currentSubscription = await this.subscriptionService.getSubscriptionByUserId(userId);
+      if (!currentSubscription.success || !currentSubscription.data) {
+        return {
+          success: false,
+          error: {
+            code: 'NO_SUBSCRIPTION_FOUND',
+            message: 'User does not have an active subscription',
+            statusCode: 404
+          }
+        };
+      }
+
+      // Renew by updating the subscription status and extending period
+      const now = new Date();
+      const newPeriodEnd = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // Add 30 days
+
+      return this.subscriptionService.updateSubscription(currentSubscription.data.id, {
+        status: 'active',
+        currentPeriodStart: now,
+        currentPeriodEnd: newPeriodEnd,
+        cancelAtPeriodEnd: false
+      });
+      
+    } catch (error) {
+      this.logger.error('Failed to renew subscription', { userId, error });
+      return {
+        success: false,
+        error: {
+          code: 'SUBSCRIPTION_RENEWAL_FAILED',
+          message: 'Failed to renew subscription',
+          statusCode: 500
+        }
+      };
+    }
+  }
+
+  async getSubscriptionUsage(userId: string): Promise<ServiceResponse<SubscriptionUsage>> {
+    if (!this.subscriptionService) {
+      return {
+        success: false,
+        error: {
+          code: 'SUBSCRIPTION_SERVICE_UNAVAILABLE',
+          message: 'Subscription service is not available',
+          statusCode: 503
+        }
+      };
+    }
+
+    return this.subscriptionService.getSubscriptionUsage(userId);
   }
 }

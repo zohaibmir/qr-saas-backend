@@ -114,4 +114,4 @@ docs/api/
 *.postman_environment
 
 # GitHub Copilot instructions (keep local only)
-.github/copilot-instructions.md
+.github/development-instructions.md

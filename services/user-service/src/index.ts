@@ -10,6 +10,7 @@ import {
   User, 
   CreateUserRequest,
   IUserService,
+  ISubscriptionService,
   IHealthChecker,
   IDependencyContainer,
   AppError
@@ -63,8 +64,18 @@ class UserServiceApplication {
       this.container.register('userRepository', userRepository);
       this.container.register('tokenRepository', tokenRepository);
       
-      // Register services
-      const userService = new UserService(userRepository, passwordHasher, this.logger);
+      // Register subscription repository
+      const { SubscriptionRepository } = require('./repositories/subscription.repository');
+      const subscriptionRepository = new SubscriptionRepository(database, this.logger);
+      this.container.register('subscriptionRepository', subscriptionRepository);
+      
+      // Register subscription service first
+      const { SubscriptionService } = require('./services/subscription.service');
+      const subscriptionService = new SubscriptionService(subscriptionRepository, userRepository, this.logger);
+      this.container.register('subscriptionService', subscriptionService);
+      
+      // Register user service with subscription service dependency
+      const userService = new UserService(userRepository, passwordHasher, this.logger, subscriptionService);
       const healthChecker = new HealthChecker(this.logger, this.container);
       this.container.register('userService', userService);
       this.container.register('healthChecker', healthChecker);
@@ -163,6 +174,10 @@ class UserServiceApplication {
 
     // User routes
     this.setupUserRoutes(userService);
+
+    // Subscription routes
+    const subscriptionService = this.container.resolve<ISubscriptionService>('subscriptionService');
+    this.setupSubscriptionRoutes(subscriptionService);
 
     // 404 handler
     this.app.use('*', (req, res) => {
@@ -311,6 +326,128 @@ class UserServiceApplication {
     });
   }
 
+  private setupSubscriptionRoutes(subscriptionService: ISubscriptionService): void {
+    // Create Subscription
+    this.app.post('/subscriptions', async (req, res) => {
+      try {
+        const result = await subscriptionService.createSubscription(req.body);
+        
+        const statusCode = result.success ? 201 : (result.error?.statusCode || 500);
+        res.status(statusCode).json(result);
+        
+      } catch (error) {
+        this.handleRouteError(error, res, 'SUBSCRIPTION_CREATION_FAILED');
+      }
+    });
+
+    // Get Subscription by User ID
+    this.app.get('/subscriptions/user/:userId', async (req, res) => {
+      try {
+        const result = await subscriptionService.getSubscriptionByUserId(req.params.userId);
+        
+        const statusCode = result.success ? 200 : (result.error?.statusCode || 500);
+        res.status(statusCode).json(result);
+        
+      } catch (error) {
+        this.handleRouteError(error, res, 'SUBSCRIPTION_FETCH_FAILED');
+      }
+    });
+
+    // Update Subscription
+    this.app.put('/subscriptions/:id', async (req, res) => {
+      try {
+        const result = await subscriptionService.updateSubscription(req.params.id, req.body);
+        
+        const statusCode = result.success ? 200 : (result.error?.statusCode || 500);
+        res.status(statusCode).json(result);
+        
+      } catch (error) {
+        this.handleRouteError(error, res, 'SUBSCRIPTION_UPDATE_FAILED');
+      }
+    });
+
+    // Cancel Subscription
+    this.app.delete('/subscriptions/:id', async (req, res) => {
+      try {
+        const cancelAtPeriodEnd = req.query.cancelAtPeriodEnd === 'true';
+        const result = await subscriptionService.cancelSubscription(req.params.id, cancelAtPeriodEnd);
+        
+        const statusCode = result.success ? 200 : (result.error?.statusCode || 500);
+        res.status(statusCode).json(result);
+        
+      } catch (error) {
+        this.handleRouteError(error, res, 'SUBSCRIPTION_CANCELLATION_FAILED');
+      }
+    });
+
+    // Get Subscription Plans
+    this.app.get('/subscription-plans', async (req, res) => {
+      try {
+        const result = await subscriptionService.getSubscriptionPlans();
+        
+        const statusCode = result.success ? 200 : (result.error?.statusCode || 500);
+        res.status(statusCode).json(result);
+        
+      } catch (error) {
+        this.handleRouteError(error, res, 'PLANS_FETCH_FAILED');
+      }
+    });
+
+    // Get Subscription Plan by ID
+    this.app.get('/subscription-plans/:id', async (req, res) => {
+      try {
+        const result = await subscriptionService.getSubscriptionPlan(req.params.id);
+        
+        const statusCode = result.success ? 200 : (result.error?.statusCode || 500);
+        res.status(statusCode).json(result);
+        
+      } catch (error) {
+        this.handleRouteError(error, res, 'PLAN_FETCH_FAILED');
+      }
+    });
+
+    // Validate Plan Upgrade
+    this.app.post('/subscriptions/validate-upgrade', async (req, res) => {
+      try {
+        const { currentPlanId, newPlanId } = req.body;
+        const result = await subscriptionService.validatePlanUpgrade(currentPlanId, newPlanId);
+        
+        const statusCode = result.success ? 200 : (result.error?.statusCode || 500);
+        res.status(statusCode).json(result);
+        
+      } catch (error) {
+        this.handleRouteError(error, res, 'PLAN_VALIDATION_FAILED');
+      }
+    });
+
+    // Calculate Proration
+    this.app.post('/subscriptions/calculate-proration', async (req, res) => {
+      try {
+        const { userId, newPlanId } = req.body;
+        const result = await subscriptionService.calculateProration(userId, newPlanId);
+        
+        const statusCode = result.success ? 200 : (result.error?.statusCode || 500);
+        res.status(statusCode).json(result);
+        
+      } catch (error) {
+        this.handleRouteError(error, res, 'PRORATION_CALCULATION_FAILED');
+      }
+    });
+
+    // Get Subscription Usage
+    this.app.get('/subscriptions/usage/:userId', async (req, res) => {
+      try {
+        const result = await subscriptionService.getSubscriptionUsage(req.params.userId);
+        
+        const statusCode = result.success ? 200 : (result.error?.statusCode || 500);
+        res.status(statusCode).json(result);
+        
+      } catch (error) {
+        this.handleRouteError(error, res, 'USAGE_FETCH_FAILED');
+      }
+    });
+  }
+
   private handleRouteError(error: any, res: express.Response, defaultCode: string): void {
     this.logger.error('Route error', { 
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -323,8 +460,7 @@ class UserServiceApplication {
         error: {
           code: error.code,
           message: error.message,
-          statusCode: error.statusCode,
-          details: error.details
+          statusCode: error.statusCode
         }
       });
     } else {

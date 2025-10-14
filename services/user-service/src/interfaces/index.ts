@@ -2,11 +2,11 @@
 // Following SOLID principles with proper abstraction layers
 
 // Import shared types (only essential ones to avoid conflicts)
-import { ServiceResponse as SharedServiceResponse, AppError, ValidationError } from '@qr-saas/shared';
+import { ServiceResponse as SharedServiceResponse, AppError, ValidationError, NotFoundError, ConflictError } from '@qr-saas/shared';
 
 // Re-export for consistency
 export type ServiceResponse<T = any> = SharedServiceResponse<T>;
-export { AppError, ValidationError };
+export { AppError, ValidationError, NotFoundError, ConflictError };
 
 // Basic interfaces needed by user service
 export interface PaginationOptions {
@@ -85,6 +85,54 @@ export interface AuthUser {
   tokens: AuthTokens;
 }
 
+// Subscription domain models
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  price: number;
+  currency: string;
+  qrLimit: number | null; // null means unlimited
+  analyticsRetentionDays: number;
+  features: Record<string, any>;
+  isActive: boolean;
+  createdAt: Date;
+}
+
+export interface UserSubscription {
+  id: string;
+  userId: string;
+  planId: string;
+  status: 'active' | 'cancelled' | 'expired' | 'pending';
+  currentPeriodStart: Date;
+  currentPeriodEnd: Date;
+  cancelAtPeriodEnd: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  plan?: SubscriptionPlan; // For joined queries
+}
+
+export interface CreateSubscriptionRequest {
+  userId: string;
+  planId: string;
+  currentPeriodStart: Date;
+  currentPeriodEnd: Date;
+}
+
+export interface UpdateSubscriptionRequest {
+  planId?: string;
+  status?: 'active' | 'cancelled' | 'expired' | 'pending';
+  currentPeriodStart?: Date;
+  currentPeriodEnd?: Date;
+  cancelAtPeriodEnd?: boolean;
+}
+
+export interface SubscriptionUsage {
+  qrCodesUsed: number;
+  qrCodesLimit: number | null;
+  analyticsRetentionDays: number;
+  features: Record<string, any>;
+}
+
 // Service interfaces (Business logic layer)
 export interface IUserService {
   createUser(userData: CreateUserRequest): Promise<ServiceResponse<User>>;
@@ -96,6 +144,26 @@ export interface IUserService {
   getUsers(pagination: PaginationOptions): Promise<ServiceResponse<User[]>>;
   verifyEmail(userId: string, token: string): Promise<ServiceResponse<void>>;
   changePassword(userId: string, oldPassword: string, newPassword: string): Promise<ServiceResponse<void>>;
+  
+  // Subscription management
+  getUserSubscription(userId: string): Promise<ServiceResponse<UserSubscription>>;
+  upgradeSubscription(userId: string, planId: string): Promise<ServiceResponse<UserSubscription>>;
+  downgradeSubscription(userId: string, planId: string): Promise<ServiceResponse<UserSubscription>>;
+  cancelSubscription(userId: string, cancelAtPeriodEnd?: boolean): Promise<ServiceResponse<UserSubscription>>;
+  renewSubscription(userId: string): Promise<ServiceResponse<UserSubscription>>;
+  getSubscriptionUsage(userId: string): Promise<ServiceResponse<SubscriptionUsage>>;
+}
+
+export interface ISubscriptionService {
+  createSubscription(request: CreateSubscriptionRequest): Promise<ServiceResponse<UserSubscription>>;
+  getSubscriptionByUserId(userId: string): Promise<ServiceResponse<UserSubscription>>;
+  updateSubscription(subscriptionId: string, updates: UpdateSubscriptionRequest): Promise<ServiceResponse<UserSubscription>>;
+  cancelSubscription(subscriptionId: string, cancelAtPeriodEnd?: boolean): Promise<ServiceResponse<UserSubscription>>;
+  getSubscriptionPlans(): Promise<ServiceResponse<SubscriptionPlan[]>>;
+  getSubscriptionPlan(planId: string): Promise<ServiceResponse<SubscriptionPlan>>;
+  validatePlanUpgrade(currentPlanId: string, newPlanId: string): Promise<ServiceResponse<boolean>>;
+  calculateProration(userId: string, newPlanId: string): Promise<ServiceResponse<{ amount: number; currency: string }>>;
+  getSubscriptionUsage(userId: string): Promise<ServiceResponse<SubscriptionUsage>>;
 }
 
 export interface IAuthService {
@@ -128,6 +196,31 @@ export interface ITokenRepository {
   revokeAllUserTokens(userId: string): Promise<void>;
   saveEmailVerificationToken(userId: string, token: string, expiresAt: Date): Promise<void>;
   savePasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<void>;
+}
+
+export interface ISubscriptionRepository {
+  // Subscription Plans
+  getPlans(): Promise<SubscriptionPlan[]>;
+  getPlanById(planId: string): Promise<SubscriptionPlan | null>;
+  getPlanByName(name: string): Promise<SubscriptionPlan | null>;
+  
+  // User Subscriptions
+  create(subscription: CreateSubscriptionRequest): Promise<UserSubscription>;
+  findByUserId(userId: string): Promise<UserSubscription | null>;
+  findById(subscriptionId: string): Promise<UserSubscription | null>;
+  update(subscriptionId: string, updates: UpdateSubscriptionRequest): Promise<UserSubscription>;
+  delete(subscriptionId: string): Promise<void>;
+  
+  // Subscription analytics
+  findExpiredSubscriptions(): Promise<UserSubscription[]>;
+  findSubscriptionsByPlan(planId: string): Promise<UserSubscription[]>;
+  getSubscriptionStats(): Promise<{
+    total: number;
+    active: number;
+    cancelled: number;
+    expired: number;
+    byPlan: Record<string, number>;
+  }>;
 }
 
 // Utility interfaces
