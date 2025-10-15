@@ -183,8 +183,10 @@ export class QRService implements IQRService {
         } : undefined
       } : undefined;
 
+      const qrDataString = this.generateQRDataString(qrCode);
+      
       const imageBuffer = await this.qrGenerator.generate(
-        qrCode.targetUrl || qrCode.id,
+        qrDataString,
         generationOptions,
         format
       );
@@ -509,6 +511,87 @@ export class QRService implements IQRService {
     return `${baseUrl}/r/${shortId}`;
   }
 
+  private generateQRDataString(qrCode: QRCode): string {
+    switch (qrCode.type) {
+      case 'swish':
+        return this.generateSwishQRData(qrCode.data);
+      case 'url':
+        return qrCode.targetUrl || qrCode.data;
+      case 'text':
+        return qrCode.data;
+      case 'email':
+        return `mailto:${qrCode.data.email}?subject=${encodeURIComponent(qrCode.data.subject || '')}&body=${encodeURIComponent(qrCode.data.body || '')}`;
+      case 'phone':
+        return `tel:${qrCode.data.phone}`;
+      case 'sms':
+        return `sms:${qrCode.data.phone}?body=${encodeURIComponent(qrCode.data.message || '')}`;
+      case 'wifi':
+        return `WIFI:T:${qrCode.data.security || 'WPA'};S:${qrCode.data.ssid};P:${qrCode.data.password || ''};H:${qrCode.data.hidden ? 'true' : 'false'};;`;
+      case 'vcard':
+        return this.generateVCardData(qrCode.data);
+      case 'location':
+        return `geo:${qrCode.data.latitude},${qrCode.data.longitude}`;
+      default:
+        return qrCode.targetUrl || qrCode.data;
+    }
+  }
+
+  private generateSwishQRData(swishData: any): string {
+    // Swish QR codes use a specific URL format
+    let swishUrl = `swish://payment`;
+    const params: string[] = [];
+
+    // Add recipient (required)
+    if (swishData.recipient) {
+      // Normalize phone number (remove spaces, add +46 if needed)
+      let recipient = swishData.recipient.replace(/\s+/g, '');
+      if (recipient.startsWith('07') || recipient.startsWith('7')) {
+        recipient = '+46' + recipient.substring(recipient.startsWith('07') ? 2 : 1);
+      } else if (recipient.startsWith('0046')) {
+        recipient = '+46' + recipient.substring(4);
+      } else if (recipient.startsWith('46') && !recipient.startsWith('+46')) {
+        recipient = '+' + recipient;
+      }
+      params.push(`phone=${encodeURIComponent(recipient)}`);
+    }
+
+    // Add amount if specified
+    if (swishData.amount !== undefined && swishData.amount > 0) {
+      params.push(`amount=${swishData.amount}`);
+    }
+
+    // Add message if specified
+    if (swishData.message) {
+      params.push(`message=${encodeURIComponent(swishData.message)}`);
+    }
+
+    // Add editable flags
+    if (swishData.editableAmount !== undefined) {
+      params.push(`editable=${swishData.editableAmount ? '1' : '0'}`);
+    }
+
+    if (params.length > 0) {
+      swishUrl += `?${params.join('&')}`;
+    }
+
+    return swishUrl;
+  }
+
+  private generateVCardData(vcardData: any): string {
+    const vcard = [
+      'BEGIN:VCARD',
+      'VERSION:3.0',
+      `FN:${vcardData.name || ''}`,
+      `ORG:${vcardData.organization || ''}`,
+      `TEL:${vcardData.phone || ''}`,
+      `EMAIL:${vcardData.email || ''}`,
+      `URL:${vcardData.website || ''}`,
+      'END:VCARD'
+    ];
+    
+    return vcard.join('\n');
+  }
+
   private validateQRData(qrData: CreateQRRequest): void {
     if (!qrData.data && !qrData.title) {
       throw new ValidationError('QR code data or title is required');
@@ -518,9 +601,41 @@ export class QRService implements IQRService {
       throw new ValidationError('QR code type is required');
     }
 
-    const validTypes = ['url', 'text', 'email', 'phone', 'sms', 'wifi', 'location', 'vcard'];
+    const validTypes = ['url', 'text', 'email', 'phone', 'sms', 'wifi', 'location', 'vcard', 'swish'];
     if (!validTypes.includes(qrData.type)) {
       throw new ValidationError(`Invalid QR code type. Must be one of: ${validTypes.join(', ')}`);
+    }
+
+    // Validate Swish-specific data
+    if (qrData.type === 'swish') {
+      this.validateSwishData(qrData.data);
+    }
+  }
+
+  private validateSwishData(swishData: any): void {
+    if (!swishData.recipient) {
+      throw new ValidationError('Swish recipient (phone number) is required');
+    }
+
+    // Validate Swedish phone number format
+    const phoneRegex = /^(\+46|0046|46)?[1-9]\d{8,9}$/;
+    if (!phoneRegex.test(swishData.recipient.replace(/\s+/g, ''))) {
+      throw new ValidationError('Invalid Swedish phone number format for Swish recipient');
+    }
+
+    // Validate amount if provided
+    if (swishData.amount !== undefined) {
+      if (typeof swishData.amount !== 'number' || swishData.amount <= 0) {
+        throw new ValidationError('Swish amount must be a positive number');
+      }
+      if (swishData.amount > 150000) {
+        throw new ValidationError('Swish amount cannot exceed 150,000 SEK');
+      }
+    }
+
+    // Validate message length if provided
+    if (swishData.message && swishData.message.length > 50) {
+      throw new ValidationError('Swish message cannot exceed 50 characters');
     }
   }
 }

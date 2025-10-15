@@ -55,6 +55,7 @@ export interface QRCode {
   name: string;
   type: QRType;
   content: any;
+  data?: any; // For backward compatibility - maps to content.data
   designConfig?: QRDesignConfig;
   targetUrl: string;
   is_active: boolean;
@@ -294,7 +295,7 @@ export interface HealthStatus {
   };
 }
 
-export type QRType = 'url' | 'text' | 'email' | 'phone' | 'sms' | 'wifi' | 'location' | 'vcard';
+export type QRType = 'url' | 'text' | 'email' | 'phone' | 'sms' | 'wifi' | 'location' | 'vcard' | 'swish';
 export type ImageFormat = 'png' | 'jpg' | 'svg' | 'pdf';
 
 // QR Templates System Interfaces

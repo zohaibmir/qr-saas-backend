@@ -270,13 +270,16 @@ export class QRRepository implements IQRRepository {
   }
 
   private mapRowToQRCode(row: any): QRCode {
+    const content = typeof row.content === 'string' ? JSON.parse(row.content) : row.content;
+    
     return {
       id: row.id,
       userId: row.user_id,
       shortId: row.short_id,
       name: row.name,
       type: row.type,
-      content: typeof row.content === 'string' ? JSON.parse(row.content) : row.content,
+      content: content,
+      data: content?.data || content, // For backward compatibility
       designConfig: typeof row.design_config === 'string' ? JSON.parse(row.design_config) : row.design_config,
       targetUrl: row.target_url,
       is_active: row.is_active,

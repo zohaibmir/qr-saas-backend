@@ -8,7 +8,8 @@ export type QRDataType =
   | 'vcard' 
   | 'calendar' 
   | 'location' 
-  | 'payment';
+  | 'payment'
+  | 'swish';
 
 export interface QRDesignConfig {
   size: number;
@@ -125,4 +126,14 @@ export interface QRScanEvent {
   city?: string;
   referrer?: string;
   scannedAt: Date;
+}
+
+// Swish Payment QR Code Interface
+export interface SwishQRData {
+  recipient: string; // Phone number or Swish ID
+  amount?: number; // Optional amount in SEK
+  message?: string; // Optional message/reference
+  editableAmount?: boolean; // Allow user to change amount
+  editableMessage?: boolean; // Allow user to change message
+  payee?: string; // Optional payee name
 }
