@@ -594,3 +594,8 @@ BEGIN
     LIMIT 1;
 END;
 $$ LANGUAGE plpgsql;
+
+-- ===============================================
+-- INCLUDE ADVANCED ANALYTICS SCHEMA
+-- ===============================================
+\i advanced-analytics-schema.sql
