@@ -19,6 +19,7 @@ This API Gateway routes requests to the following microservices:
 - **Analytics Service** (Port 3003) - Scan tracking and analytics
 - **File Service** (Port 3004) - File upload and storage
 - **Notification Service** (Port 3005) - Email/SMS with database persistence
+- **Landing Page Service** (Port 3010) - Landing pages with forms, A/B testing, and analytics
 
 ## 🗄️ Database Integration
 - **PostgreSQL**: Complete persistence across all services
@@ -635,6 +636,118 @@ Import the included Postman collection for comprehensive API testing.
         }
       },
       ...bulkQRSchemas,
+      LandingPage: {
+        type: 'object',
+        required: ['name', 'title', 'templateId'],
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Unique landing page identifier'
+          },
+          userId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Owner user ID'
+          },
+          name: {
+            type: 'string',
+            description: 'Landing page name',
+            example: 'Product Launch Campaign'
+          },
+          title: {
+            type: 'string',
+            description: 'Landing page title',
+            example: 'Welcome to Our New Product'
+          },
+          description: {
+            type: 'string',
+            description: 'Landing page description',
+            example: 'Convert QR visitors into customers'
+          },
+          slug: {
+            type: 'string',
+            description: 'URL-friendly identifier',
+            example: 'product-launch-2024'
+          },
+          templateId: {
+            type: 'string',
+            description: 'Template identifier',
+            example: 'modern-hero'
+          },
+          content: {
+            type: 'string',
+            description: 'HTML content of the landing page'
+          },
+          seoTitle: {
+            type: 'string',
+            description: 'SEO meta title'
+          },
+          seoDescription: {
+            type: 'string',
+            description: 'SEO meta description'
+          },
+          isPublished: {
+            type: 'boolean',
+            description: 'Whether the landing page is published'
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time'
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time'
+          }
+        }
+      },
+      LandingPageForm: {
+        type: 'object',
+        required: ['name', 'fields'],
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Unique form identifier'
+          },
+          landingPageId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Associated landing page ID'
+          },
+          name: {
+            type: 'string',
+            description: 'Form name',
+            example: 'Lead Capture Form'
+          },
+          fields: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                type: { type: 'string', enum: ['text', 'email', 'phone', 'textarea', 'select', 'checkbox'] },
+                label: { type: 'string' },
+                required: { type: 'boolean' },
+                placeholder: { type: 'string' },
+                options: { type: 'array', items: { type: 'string' } }
+              }
+            }
+          },
+          successMessage: {
+            type: 'string',
+            description: 'Message shown after successful submission'
+          },
+          errorMessage: {
+            type: 'string',
+            description: 'Message shown on form errors'
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time'
+          }
+        }
+      },
       SubscriptionPlan: {
         type: 'object',
         properties: {
@@ -1024,6 +1137,10 @@ Import the included Postman collection for comprehensive API testing.
     {
       name: 'Subscriptions',
       description: 'Subscription management, billing, and payment processing with Stripe integration'
+    },
+    {
+      name: 'Landing Pages',
+      description: 'Landing page service for QR code campaigns with templates, forms, A/B testing, and analytics'
     }
   ]
 };
@@ -1035,6 +1152,7 @@ const options = {
     './src/middleware/*.ts',
     './src/docs/*.ts',
     './src/docs/subscription-routes.ts',
+    './src/docs/landing-page-routes.ts',
     './src/index.ts',
     './src/app.ts'
   ]

@@ -135,6 +135,28 @@ services:
       - notification_service_node_modules:/app/node_modules
     restart: unless-stopped
 
+  landing-page-service:
+    build: ./services/landing-page-service
+    ports:
+      - "3010:3010"
+    environment:
+      - NODE_ENV=development
+      - LANDING_PAGE_PORT=3010
+      - DATABASE_URL=postgresql://qr_user:qr_password@postgres:5432/qr_saas
+      - REDIS_URL=redis://redis:6379
+      - BASE_URL=http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - qr-network
+    volumes:
+      - ./services/landing-page-service/src:/app/src
+      - landing_page_service_node_modules:/app/node_modules
+    restart: unless-stopped
+
   # API Gateway (last to ensure all services are up)
   api-gateway:
     build: ./services/api-gateway
@@ -150,6 +172,7 @@ services:
       - ANALYTICS_SERVICE_URL=http://analytics-service:3003
       - FILE_SERVICE_URL=http://file-service:3004
       - NOTIFICATION_SERVICE_URL=http://notification-service:3005
+      - LANDING_PAGE_SERVICE_URL=http://landing-page-service:3010
     depends_on:
       redis:
         condition: service_healthy
@@ -162,6 +185,8 @@ services:
       file-service:
         condition: service_started
       notification-service:
+        condition: service_started
+      landing-page-service:
         condition: service_started
     networks:
       - qr-network
@@ -184,3 +209,4 @@ volumes:
   api_gateway_node_modules:
   file_service_node_modules:
   notification_service_node_modules:
+  landing_page_service_node_modules:

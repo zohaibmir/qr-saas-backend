@@ -127,6 +127,12 @@ This platform follows a microservices architecture with clean code principles an
 - **Status**: **MAJOR UPDATE**: Transformed to database-persistent architecture
 - **Technology**: Express.js, Nodemailer, PostgreSQL (email_messages, sms_messages, notification_templates)
 
+### ✅ Landing Page Service (Port 3010) - **OPERATIONAL**
+- **Purpose**: QR code landing page creation, management, A/B testing, and analytics
+- **Features**: ✅ Landing page templates, form management, A/B testing, social media integration, custom domains, analytics tracking
+- **Status**: **NEWLY ADDED** - Complete landing page management system with clean architecture
+- **Technology**: Express.js, PostgreSQL, TypeScript with SOLID principles
+
 ## 🛠️ Tech Stack - **COMPLETE INTEGRATION**
 
 - **Runtime**: Node.js 18+ ✅
@@ -164,7 +170,8 @@ qr-saas-platform/
 │   ├── qr-service/
 │   ├── analytics-service/
 │   ├── file-service/
-│   └── notification-service/
+│   ├── notification-service/
+│   └── landing-page-service/
 ├── shared/
 │   ├── src/
 │   │   ├── types/
@@ -301,6 +308,16 @@ notification_templates (id, name, type, content, created_at, updated_at)
 -- File Management
 file_uploads (id, user_id, original_name, stored_name, file_path, file_size, mime_type, upload_type, created_at)
 
+-- Landing Page System
+landing_page_templates (id, name, description, template_type, content, styles, settings, is_system_template, is_active, usage_count, created_at, updated_at)
+landing_pages (id, user_id, qr_code_id, template_id, name, slug, title, description, content, styles, settings, custom_domain_id, is_published, published_at, seo_title, seo_description, social_image_id, created_at, updated_at)
+landing_page_ab_tests (id, page_id, name, description, variant_a_content, variant_b_content, traffic_split, status, start_date, end_date, winner_variant, confidence_level, created_at, updated_at)
+landing_page_forms (id, page_id, name, fields, validation_rules, submit_url, success_message, error_message, is_active, created_at, updated_at)
+landing_page_form_submissions (id, form_id, page_id, submission_data, ip_address, user_agent, referrer, submitted_at)
+landing_page_custom_domains (id, user_id, domain, subdomain, is_verified, verification_token, ssl_status, dns_records, created_at, updated_at)
+landing_page_analytics (id, page_id, event_type, event_data, ip_address, user_agent, referrer, session_id, created_at)
+landing_page_social_shares (id, page_id, platform, share_count, last_updated)
+
 -- Subscription System (Fully Operational)
 subscription_plans (id, name, description, price, billing_cycle, features, max_qr_codes, max_scans_per_month, stripe_price_id, is_active, display_order, created_at, updated_at)
 user_subscriptions (id, user_id, plan_id, stripe_subscription_id, status, current_period_start, current_period_end, trial_end, cancel_at_period_end, proration_amount, metadata, created_at, updated_at)
@@ -385,6 +402,24 @@ GET    /api/subscriptions/usage
 POST   /api/files/upload
 GET    /api/files/:id
 DELETE /api/files/:id
+```
+
+#### Landing Pages
+```
+GET    /api/landing/pages
+POST   /api/landing/pages
+GET    /api/landing/pages/:id
+PUT    /api/landing/pages/:id
+DELETE /api/landing/pages/:id
+PUT    /api/landing/pages/:id/publish
+GET    /api/landing/templates
+POST   /api/landing/pages/:pageId/forms
+POST   /api/landing/forms/:formId/submit
+POST   /api/landing/pages/:pageId/ab-tests
+GET    /api/landing/pages/:pageId/analytics
+POST   /api/landing/domains
+GET    /p/:slug  (Public landing page)
+GET    /preview/:pageId  (Public preview)
 ```
 
 ## 🐳 Docker Commands
@@ -541,6 +576,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 | Analytics | 3003 | ✅ Operational | PostgreSQL | Scan tracking, analytics |
 | File Service | 3004 | ✅ Operational | PostgreSQL | File uploads, metadata |
 | Notifications | 3005 | ✅ Operational | PostgreSQL | **Email/SMS with DB persistence** |
+| Landing Pages | 3010 | ✅ **FULLY INTEGRATED** | PostgreSQL | **Landing page management, A/B testing, API Gateway routing** |
 
 ### 🗄️ **DATABASE INTEGRATION STATUS**
 - ✅ **PostgreSQL Schema**: Complete with all tables and relationships

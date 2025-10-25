@@ -4,33 +4,34 @@
   "description": "QR Code SaaS Platform with Microservices Architecture",
   "main": "index.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev:gateway\" \"npm run dev:user\" \"npm run dev:qr\" \"npm run dev:analytics\" \"npm run dev:file\" \"npm run dev:notification\"",
+    "dev": "concurrently \"npm run dev:gateway\" \"npm run dev:user\" \"npm run dev:qr\" \"npm run dev:analytics\" \"npm run dev:file\" \"npm run dev:notification\" \"npm run dev:landing\"",
     "dev:gateway": "cd services/api-gateway && npm run dev",
     "dev:user": "cd services/user-service && npm run dev",
     "dev:qr": "cd services/qr-service && npm run dev",
     "dev:analytics": "cd services/analytics-service && npm run dev",
     "dev:file": "cd services/file-service && npm run dev",
     "dev:notification": "cd services/notification-service && npm run dev",
+    "dev:landing": "cd services/landing-page-service && npm run dev",
     "build": "npm run build:shared && npm run build:services",
     "build:shared": "cd shared && npm run build",
-    "build:services": "concurrently \"cd services/api-gateway && npm run build\" \"cd services/user-service && npm run build\" \"cd services/qr-service && npm run build\" \"cd services/analytics-service && npm run build\" \"cd services/file-service && npm run build\" \"cd services/notification-service && npm run build\"",
+    "build:services": "concurrently \"cd services/api-gateway && npm run build\" \"cd services/user-service && npm run build\" \"cd services/qr-service && npm run build\" \"cd services/analytics-service && npm run build\" \"cd services/file-service && npm run build\" \"cd services/notification-service && npm run build\" \"cd services/landing-page-service && npm run build\"",
     "test": "npm run test:shared && npm run test:services",
     "test:shared": "cd shared && npm run test",
-    "test:services": "concurrently \"cd services/api-gateway && npm run test\" \"cd services/user-service && npm run test\" \"cd services/qr-service && npm run test\" \"cd services/analytics-service && npm run test\" \"cd services/file-service && npm run test\" \"cd services/notification-service && npm run test\"",
+    "test:services": "concurrently \"cd services/api-gateway && npm run test\" \"cd services/user-service && npm run test\" \"cd services/qr-service && npm run test\" \"cd services/analytics-service && npm run test\" \"cd services/file-service && npm run test\" \"cd services/notification-service && npm run test\" \"cd services/landing-page-service && npm run test\"",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
     "setup": "npm install && npm run setup:services && npm run setup:shared",
-    "setup:services": "cd services/api-gateway && npm install && cd ../user-service && npm install && cd ../qr-service && npm install && cd ../analytics-service && npm install && cd ../file-service && npm install && cd ../notification-service && npm install",
+    "setup:services": "cd services/api-gateway && npm install && cd ../user-service && npm install && cd ../qr-service && npm install && cd ../analytics-service && npm install && cd ../file-service && npm install && cd ../notification-service && npm install && cd ../landing-page-service && npm install",
     "setup:shared": "cd shared && npm install"
   },
   "keywords": [
-    "qr-code", 
-    "saas", 
-    "microservices", 
-    "typescript", 
-    "node.js", 
-    "clean-architecture", 
+    "qr-code",
+    "saas",
+    "microservices",
+    "typescript",
+    "node.js",
+    "clean-architecture",
     "api-gateway",
     "docker"
   ],
@@ -48,12 +49,18 @@
     "url": "https://github.com/zohaibzahid/qr-saas-platform/issues"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
     "@types/node": "^20.8.0",
+    "concurrently": "^8.2.2",
     "typescript": "^5.2.2"
   },
   "workspaces": [
     "shared",
     "services/*"
-  ]
+  ],
+  "dependencies": {
+    "@types/cors": "^2.8.19",
+    "cors": "^2.8.5",
+    "express-rate-limit": "^7.5.1",
+    "helmet": "^7.2.0"
+  }
 }

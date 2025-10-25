@@ -63,6 +63,18 @@
       "value": "integration-test@example.com",
       "type": "string",
       "description": "Test email for integration tests"
+    },
+    {
+      "key": "landing_page_id",
+      "value": "",
+      "type": "string",
+      "description": "Landing Page ID from database - Set automatically by tests"
+    },
+    {
+      "key": "page_slug",
+      "value": "test-landing-page",
+      "type": "string",
+      "description": "Landing page slug for public access"
     }
   ],
   "item": [
@@ -1659,6 +1671,270 @@
               "raw": "{{base_url}}/api/notifications/health",
               "host": ["{{base_url}}"],
               "path": ["api", "notifications", "health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. Landing Page Service",
+      "item": [
+        {
+          "name": "Service Information",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/landing/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "landing", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Landing Page Service Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/landing/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "landing", "health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Landing Pages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/landing/pages?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "landing", "pages"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Landing Page",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Landing Page\",\n  \"title\": \"Welcome to Our QR Campaign\",\n  \"description\": \"A beautiful landing page for QR code campaigns\",\n  \"templateId\": \"basic-template\",\n  \"content\": \"<h1>Hello World</h1><p>This is a test landing page</p>\",\n  \"seoTitle\": \"QR Landing Page\",\n  \"seoDescription\": \"Professional landing page for QR code campaigns\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/landing/pages",
+              "host": ["{{base_url}}"],
+              "path": ["api", "landing", "pages"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Landing Page by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/landing/pages/{{landing_page_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "landing", "pages", "{{landing_page_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Landing Page",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Landing Page Title\",\n  \"description\": \"Updated description\",\n  \"content\": \"<h1>Updated Content</h1><p>This page has been updated</p>\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/landing/pages/{{landing_page_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "landing", "pages", "{{landing_page_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Publish Landing Page",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isPublished\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/landing/pages/{{landing_page_id}}/publish",
+              "host": ["{{base_url}}"],
+              "path": ["api", "landing", "pages", "{{landing_page_id}}", "publish"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Landing Page Templates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/landing/templates",
+              "host": ["{{base_url}}"],
+              "path": ["api", "landing", "templates"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Form for Landing Page",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lead Capture Form\",\n  \"fields\": [\n    {\n      \"name\": \"name\",\n      \"type\": \"text\",\n      \"label\": \"Full Name\",\n      \"required\": true,\n      \"placeholder\": \"Enter your full name\"\n    },\n    {\n      \"name\": \"email\",\n      \"type\": \"email\",\n      \"label\": \"Email Address\",\n      \"required\": true,\n      \"placeholder\": \"Enter your email\"\n    },\n    {\n      \"name\": \"phone\",\n      \"type\": \"phone\",\n      \"label\": \"Phone Number\",\n      \"required\": false,\n      \"placeholder\": \"Enter your phone number\"\n    }\n  ],\n  \"successMessage\": \"Thank you for your submission!\",\n  \"errorMessage\": \"Please fill in all required fields.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/landing/pages/{{landing_page_id}}/forms",
+              "host": ["{{base_url}}"],
+              "path": ["api", "landing", "pages", "{{landing_page_id}}", "forms"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create A/B Test",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Headline Test\",\n  \"description\": \"Testing different headlines for conversion\",\n  \"variantAContent\": \"<h1>Get Started Today</h1>\",\n  \"variantBContent\": \"<h1>Join Thousands of Happy Customers</h1>\",\n  \"trafficSplit\": 50\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/landing/pages/{{landing_page_id}}/ab-tests",
+              "host": ["{{base_url}}"],
+              "path": ["api", "landing", "pages", "{{landing_page_id}}", "ab-tests"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Landing Page Analytics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/landing/pages/{{landing_page_id}}/analytics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "landing", "pages", "{{landing_page_id}}", "analytics"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Custom Domain",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"domain\": \"my-campaign.com\",\n  \"subdomain\": \"landing\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/landing/domains",
+              "host": ["{{base_url}}"],
+              "path": ["api", "landing", "domains"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "View Public Landing Page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/p/{{page_slug}}",
+              "host": ["{{base_url}}"],
+              "path": ["p", "{{page_slug}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Preview Landing Page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/preview/{{landing_page_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["preview", "{{landing_page_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Landing Page",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/landing/pages/{{landing_page_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "landing", "pages", "{{landing_page_id}}"]
             }
           },
           "response": []

@@ -1,5 +1,5 @@
 -- ===============================================
--- ADVANCED ANALYTICS SYSTEM TABLES
+-- ADVANCED ANALYTICS SYSTEM TABLES (POSTGRESQL COMPATIBLE)
 -- ===============================================
 
 -- Conversion Goals Table
@@ -18,11 +18,7 @@ CREATE TABLE IF NOT EXISTS conversion_goals (
     attribution_window_hours INTEGER DEFAULT 24, -- Attribution window in hours
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    
-    INDEX idx_conversion_goals_qr_code (qr_code_id),
-    INDEX idx_conversion_goals_user (user_id),
-    INDEX idx_conversion_goals_active (qr_code_id, is_active) WHERE is_active = true
+    updated_at TIMESTAMP DEFAULT NOW()
 );
 
 -- Conversion Events Table
@@ -42,13 +38,7 @@ CREATE TABLE IF NOT EXISTS conversion_events (
     user_agent TEXT,
     referrer_url TEXT,
     page_url TEXT NOT NULL,
-    timestamp TIMESTAMP DEFAULT NOW(),
-    
-    INDEX idx_conversion_events_goal (goal_id),
-    INDEX idx_conversion_events_qr_code (qr_code_id),
-    INDEX idx_conversion_events_session (session_id),
-    INDEX idx_conversion_events_timestamp (timestamp),
-    INDEX idx_conversion_events_funnel (goal_id, step_number, timestamp)
+    timestamp TIMESTAMP DEFAULT NOW()
 );
 
 -- Heatmap Data Storage Table
@@ -65,12 +55,6 @@ CREATE TABLE IF NOT EXISTS heatmap_data (
     metadata JSONB, -- Additional context data
     generated_at TIMESTAMP DEFAULT NOW(),
     expires_at TIMESTAMP, -- For cache invalidation
-    
-    INDEX idx_heatmap_data_qr_code (qr_code_id),
-    INDEX idx_heatmap_data_type (qr_code_id, heatmap_type),
-    INDEX idx_heatmap_data_key (qr_code_id, heatmap_type, data_key),
-    INDEX idx_heatmap_data_time (qr_code_id, time_period),
-    INDEX idx_heatmap_data_expires (expires_at),
     UNIQUE(qr_code_id, heatmap_type, data_key, time_period)
 );
 
@@ -85,11 +69,6 @@ CREATE TABLE IF NOT EXISTS realtime_metrics_cache (
     tags JSONB, -- Additional metric tags (country, device, etc.)
     timestamp TIMESTAMP DEFAULT NOW(),
     expires_at TIMESTAMP DEFAULT (NOW() + INTERVAL '1 hour'),
-    
-    INDEX idx_realtime_metrics_qr_code (qr_code_id),
-    INDEX idx_realtime_metrics_type (qr_code_id, metric_type),
-    INDEX idx_realtime_metrics_timestamp (timestamp),
-    INDEX idx_realtime_metrics_expires (expires_at),
     UNIQUE(qr_code_id, metric_type, aggregation_period, timestamp)
 );
 
@@ -109,10 +88,6 @@ CREATE TABLE IF NOT EXISTS peak_time_analysis (
     data_points_analyzed INTEGER NOT NULL DEFAULT 0,
     analysis_version VARCHAR(20) DEFAULT '1.0',
     created_at TIMESTAMP DEFAULT NOW(),
-    
-    INDEX idx_peak_analysis_qr_code (qr_code_id),
-    INDEX idx_peak_analysis_date (analysis_date),
-    INDEX idx_peak_analysis_granularity (qr_code_id, time_granularity),
     UNIQUE(qr_code_id, analysis_date, time_granularity)
 );
 
@@ -136,13 +111,7 @@ CREATE TABLE IF NOT EXISTS analytics_export_jobs (
     completed_at TIMESTAMP,
     downloaded_at TIMESTAMP,
     download_count INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT NOW(),
-    
-    INDEX idx_export_jobs_user (user_id),
-    INDEX idx_export_jobs_qr_code (qr_code_id),
-    INDEX idx_export_jobs_status (status),
-    INDEX idx_export_jobs_expires (expires_at),
-    INDEX idx_export_jobs_created (created_at)
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
 -- Analytics Alerts Table
@@ -160,12 +129,7 @@ CREATE TABLE IF NOT EXISTS analytics_alerts (
     last_notification_sent_at TIMESTAMP,
     snooze_until TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    
-    INDEX idx_analytics_alerts_user (user_id),
-    INDEX idx_analytics_alerts_qr_code (qr_code_id),
-    INDEX idx_analytics_alerts_active (qr_code_id, is_active) WHERE is_active = true,
-    INDEX idx_analytics_alerts_type (alert_type)
+    updated_at TIMESTAMP DEFAULT NOW()
 );
 
 -- Analytics Alert History Table
@@ -177,10 +141,7 @@ CREATE TABLE IF NOT EXISTS analytics_alert_history (
     threshold_value DECIMAL(15,4), -- The threshold that was exceeded
     notification_sent BOOLEAN DEFAULT false,
     notification_channels_used JSONB, -- Which channels were used for notification
-    metadata JSONB, -- Additional context about the trigger
-    
-    INDEX idx_alert_history_alert (alert_id),
-    INDEX idx_alert_history_triggered (triggered_at)
+    metadata JSONB -- Additional context about the trigger
 );
 
 -- WebSocket Connections Table (for real-time tracking)
@@ -194,41 +155,70 @@ CREATE TABLE IF NOT EXISTS realtime_connections (
     connected_at TIMESTAMP DEFAULT NOW(),
     last_activity_at TIMESTAMP DEFAULT NOW(),
     disconnected_at TIMESTAMP,
-    is_active BOOLEAN DEFAULT true,
-    
-    INDEX idx_realtime_connections_user (user_id),
-    INDEX idx_realtime_connections_active (is_active, last_activity_at) WHERE is_active = true,
-    INDEX idx_realtime_connections_qr_subscriptions USING GIN (subscribed_qr_codes)
+    is_active BOOLEAN DEFAULT true
 );
 
 -- ===============================================
--- MATERIALIZED VIEWS FOR PERFORMANCE
+-- CREATE INDEXES FOR ADVANCED ANALYTICS TABLES
 -- ===============================================
 
--- Daily Analytics Summary (Materialized View)
-CREATE MATERIALIZED VIEW IF NOT EXISTS daily_analytics_summary AS
-SELECT 
-    DATE_TRUNC('day', se.timestamp) as analytics_date,
-    se.qr_code_id,
-    COUNT(*) as total_scans,
-    COUNT(DISTINCT se.ip_address) as unique_scans,
-    COUNT(DISTINCT se.country) as unique_countries,
-    COUNT(DISTINCT se.device) as unique_devices,
-    MODE() WITHIN GROUP (ORDER BY se.country) as top_country,
-    MODE() WITHIN GROUP (ORDER BY se.platform) as top_platform,
-    MODE() WITHIN GROUP (ORDER BY se.device) as top_device,
-    AVG(EXTRACT(HOUR FROM se.timestamp)) as avg_scan_hour,
-    MIN(se.timestamp) as first_scan_time,
-    MAX(se.timestamp) as last_scan_time
-FROM scan_events se
-WHERE se.timestamp >= CURRENT_DATE - INTERVAL '90 days' -- Keep 90 days of daily summaries
-GROUP BY DATE_TRUNC('day', se.timestamp), se.qr_code_id;
+-- Conversion Goals indexes
+CREATE INDEX IF NOT EXISTS idx_conversion_goals_qr_code ON conversion_goals(qr_code_id);
+CREATE INDEX IF NOT EXISTS idx_conversion_goals_user ON conversion_goals(user_id);
+CREATE INDEX IF NOT EXISTS idx_conversion_goals_active ON conversion_goals(qr_code_id, is_active) WHERE is_active = true;
 
--- Create unique index for materialized view
-CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_analytics_summary_unique 
-ON daily_analytics_summary (analytics_date, qr_code_id);
+-- Conversion Events indexes
+CREATE INDEX IF NOT EXISTS idx_conversion_events_goal ON conversion_events(goal_id);
+CREATE INDEX IF NOT EXISTS idx_conversion_events_qr_code ON conversion_events(qr_code_id);
+CREATE INDEX IF NOT EXISTS idx_conversion_events_session ON conversion_events(session_id);
+CREATE INDEX IF NOT EXISTS idx_conversion_events_timestamp ON conversion_events(timestamp);
+CREATE INDEX IF NOT EXISTS idx_conversion_events_funnel ON conversion_events(goal_id, step_number, timestamp);
 
--- Conversion Funnel Performance (Materialized View)
+-- Heatmap Data indexes
+CREATE INDEX IF NOT EXISTS idx_heatmap_data_qr_code ON heatmap_data(qr_code_id);
+CREATE INDEX IF NOT EXISTS idx_heatmap_data_type ON heatmap_data(qr_code_id, heatmap_type);
+CREATE INDEX IF NOT EXISTS idx_heatmap_data_key ON heatmap_data(qr_code_id, heatmap_type, data_key);
+CREATE INDEX IF NOT EXISTS idx_heatmap_data_time ON heatmap_data(qr_code_id, time_period);
+CREATE INDEX IF NOT EXISTS idx_heatmap_data_expires ON heatmap_data(expires_at);
+
+-- Real-time Metrics indexes
+CREATE INDEX IF NOT EXISTS idx_realtime_metrics_qr_code ON realtime_metrics_cache(qr_code_id);
+CREATE INDEX IF NOT EXISTS idx_realtime_metrics_type ON realtime_metrics_cache(qr_code_id, metric_type);
+CREATE INDEX IF NOT EXISTS idx_realtime_metrics_timestamp ON realtime_metrics_cache(timestamp);
+CREATE INDEX IF NOT EXISTS idx_realtime_metrics_expires ON realtime_metrics_cache(expires_at);
+
+-- Peak Time Analysis indexes
+CREATE INDEX IF NOT EXISTS idx_peak_analysis_qr_code ON peak_time_analysis(qr_code_id);
+CREATE INDEX IF NOT EXISTS idx_peak_analysis_date ON peak_time_analysis(analysis_date);
+CREATE INDEX IF NOT EXISTS idx_peak_analysis_granularity ON peak_time_analysis(qr_code_id, time_granularity);
+
+-- Export Jobs indexes
+CREATE INDEX IF NOT EXISTS idx_export_jobs_user ON analytics_export_jobs(user_id);
+CREATE INDEX IF NOT EXISTS idx_export_jobs_qr_code ON analytics_export_jobs(qr_code_id);
+CREATE INDEX IF NOT EXISTS idx_export_jobs_status ON analytics_export_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_export_jobs_expires ON analytics_export_jobs(expires_at);
+CREATE INDEX IF NOT EXISTS idx_export_jobs_created ON analytics_export_jobs(created_at);
+
+-- Analytics Alerts indexes
+CREATE INDEX IF NOT EXISTS idx_analytics_alerts_user ON analytics_alerts(user_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_alerts_qr_code ON analytics_alerts(qr_code_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_alerts_active ON analytics_alerts(qr_code_id, is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_analytics_alerts_type ON analytics_alerts(alert_type);
+
+-- Alert History indexes
+CREATE INDEX IF NOT EXISTS idx_alert_history_alert ON analytics_alert_history(alert_id);
+CREATE INDEX IF NOT EXISTS idx_alert_history_triggered ON analytics_alert_history(triggered_at);
+
+-- Real-time Connections indexes
+CREATE INDEX IF NOT EXISTS idx_realtime_connections_user ON realtime_connections(user_id);
+CREATE INDEX IF NOT EXISTS idx_realtime_connections_active ON realtime_connections(is_active, last_activity_at) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_realtime_connections_qr_subscriptions ON realtime_connections USING GIN (subscribed_qr_codes);
+
+-- ===============================================
+-- CONVERSION FUNNEL MATERIALIZED VIEW
+-- ===============================================
+
+-- Conversion Funnel Performance (Materialized View) - Now that tables exist
 CREATE MATERIALIZED VIEW IF NOT EXISTS conversion_funnel_summary AS
 SELECT 
     cg.id as goal_id,
@@ -250,7 +240,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_conversion_funnel_summary_unique
 ON conversion_funnel_summary (goal_id, conversion_date, step_number);
 
 -- ===============================================
--- ANALYTICS FUNCTIONS AND PROCEDURES
+-- ADVANCED ANALYTICS HELPER FUNCTIONS
 -- ===============================================
 
 -- Function to update heatmap data
@@ -333,42 +323,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to trigger analytics alerts
-CREATE OR REPLACE FUNCTION check_analytics_alerts(p_qr_code_id UUID)
-RETURNS INTEGER AS $$
-DECLARE
-    alert_record RECORD;
-    triggered_count INTEGER := 0;
-BEGIN
-    -- Loop through active alerts for this QR code
-    FOR alert_record IN 
-        SELECT * FROM analytics_alerts 
-        WHERE qr_code_id = p_qr_code_id 
-          AND is_active = true 
-          AND (snooze_until IS NULL OR snooze_until < NOW())
-    LOOP
-        -- Check alert conditions based on type
-        -- This is a simplified version - actual implementation would be more complex
-        IF alert_record.alert_type = 'scan_threshold' THEN
-            -- Check if scan count exceeds threshold
-            NULL; -- Implementation would go here
-        ELSIF alert_record.alert_type = 'traffic_spike' THEN
-            -- Check for unusual traffic patterns
-            NULL; -- Implementation would go here
-        END IF;
-        
-        triggered_count := triggered_count + 1;
-    END LOOP;
-    
-    RETURN triggered_count;
-END;
-$$ LANGUAGE plpgsql;
-
 -- Function to clean up expired data
 CREATE OR REPLACE FUNCTION cleanup_analytics_data()
 RETURNS INTEGER AS $$
 DECLARE
     cleanup_count INTEGER := 0;
+    additional_count INTEGER := 0;
 BEGIN
     -- Clean up expired heatmap data
     DELETE FROM heatmap_data WHERE expires_at < NOW();
@@ -376,15 +336,13 @@ BEGIN
     
     -- Clean up expired real-time metrics
     DELETE FROM realtime_metrics_cache WHERE expires_at < NOW();
-    GET DIAGNOSTICS cleanup_count = cleanup_count + ROW_COUNT;
+    GET DIAGNOSTICS additional_count = ROW_COUNT;
+    cleanup_count := cleanup_count + additional_count;
     
     -- Clean up expired export jobs
     UPDATE analytics_export_jobs 
     SET status = 'expired' 
     WHERE expires_at < NOW() AND status IN ('completed', 'failed');
-    
-    -- Clean up old scan events (keep based on subscription tier)
-    -- This would be implemented based on business rules
     
     RETURN cleanup_count;
 END;
@@ -448,37 +406,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create the trigger
+-- Create the trigger (drop first to avoid conflicts)
 DROP TRIGGER IF EXISTS scan_event_heatmap_update ON scan_events;
 CREATE TRIGGER scan_event_heatmap_update
     AFTER INSERT ON scan_events
     FOR EACH ROW
     EXECUTE FUNCTION trigger_update_heatmap_on_scan();
 
--- Trigger to update real-time connection activity
-CREATE OR REPLACE FUNCTION trigger_update_connection_activity()
-RETURNS TRIGGER AS $$
-BEGIN
-    UPDATE realtime_connections 
-    SET last_activity_at = NOW()
-    WHERE connection_id = NEW.connection_id;
-    
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
 -- ===============================================
--- ADVANCED ANALYTICS INDEXES FOR PERFORMANCE
+-- ADDITIONAL PERFORMANCE INDEXES
 -- ===============================================
-
--- Composite indexes for common queries
-CREATE INDEX IF NOT EXISTS idx_scan_events_analytics_combo ON scan_events (qr_code_id, timestamp, country, device, platform);
-CREATE INDEX IF NOT EXISTS idx_scan_events_hourly ON scan_events (qr_code_id, DATE_TRUNC('hour', timestamp));
-CREATE INDEX IF NOT EXISTS idx_scan_events_daily ON scan_events (qr_code_id, DATE_TRUNC('day', timestamp));
-
--- Partial indexes for active data
-CREATE INDEX IF NOT EXISTS idx_conversion_goals_active_qr ON conversion_goals (qr_code_id) WHERE is_active = true;
-CREATE INDEX IF NOT EXISTS idx_analytics_alerts_active_qr ON analytics_alerts (qr_code_id) WHERE is_active = true;
 
 -- GIN indexes for JSONB columns
 CREATE INDEX IF NOT EXISTS idx_conversion_goals_funnel_steps ON conversion_goals USING GIN (funnel_steps);
@@ -486,22 +423,9 @@ CREATE INDEX IF NOT EXISTS idx_conversion_events_event_data ON conversion_events
 CREATE INDEX IF NOT EXISTS idx_analytics_alerts_conditions ON analytics_alerts USING GIN (conditions);
 CREATE INDEX IF NOT EXISTS idx_peak_analysis_recommendations ON peak_time_analysis USING GIN (recommendations);
 
+-- Partial indexes for active data
+CREATE INDEX IF NOT EXISTS idx_conversion_goals_active_qr ON conversion_goals (qr_code_id) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_analytics_alerts_active_qr ON analytics_alerts (qr_code_id) WHERE is_active = true;
+
 -- Expression indexes for common calculations
-CREATE INDEX IF NOT EXISTS idx_scan_events_hour_of_day ON scan_events (qr_code_id, EXTRACT(HOUR FROM timestamp));
-CREATE INDEX IF NOT EXISTS idx_scan_events_day_of_week ON scan_events (qr_code_id, EXTRACT(DOW FROM timestamp));
 CREATE INDEX IF NOT EXISTS idx_conversion_events_conversion_rate ON conversion_events (goal_id, step_number, session_id);
-
--- ===============================================
--- ANALYTICS SECURITY AND PERMISSIONS
--- ===============================================
-
--- Row Level Security for analytics data
-ALTER TABLE conversion_goals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE conversion_events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE analytics_alerts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE analytics_export_jobs ENABLE ROW LEVEL SECURITY;
-
--- Policies for data access (these would be customized based on your auth system)
--- CREATE POLICY user_conversion_goals ON conversion_goals FOR ALL USING (user_id = current_setting('app.user_id')::UUID);
--- CREATE POLICY user_analytics_alerts ON analytics_alerts FOR ALL USING (user_id = current_setting('app.user_id')::UUID);
--- CREATE POLICY user_export_jobs ON analytics_export_jobs FOR ALL USING (user_id = current_setting('app.user_id')::UUID);

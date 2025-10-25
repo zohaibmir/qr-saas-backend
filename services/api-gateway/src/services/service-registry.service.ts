@@ -41,6 +41,12 @@ export class ServiceRegistry implements IServiceRegistry {
         url: process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3005',
         healthPath: '/health',
         timeout: 5000
+      },
+      {
+        name: 'landing-page-service',
+        url: process.env.LANDING_PAGE_SERVICE_URL || 'http://localhost:3010',
+        healthPath: '/health',
+        timeout: 5000
       }
     ];
 

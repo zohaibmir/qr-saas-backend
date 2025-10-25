@@ -126,7 +126,8 @@ class ApiGatewayApplication {
           'qr-service': 'QR code generation and management',
           'analytics-service': 'Scan tracking and analytics',
           'file-service': 'File upload and storage',
-          'notification-service': 'Email/SMS with database persistence'
+          'notification-service': 'Email/SMS with database persistence',
+          'landing-page-service': 'Landing page builder with A/B testing and forms'
         },
         database: 'PostgreSQL with complete persistence',
         architecture: 'Clean Architecture with SOLID principles',
@@ -220,6 +221,57 @@ class ApiGatewayApplication {
     
     this.app.all('/api/notifications/*', async (req, res) => {
       await this.proxyRequest(req, res, 'notification-service', '/api/notifications', '');
+    });
+
+    // Landing Pages routes - handle both base route and sub-routes
+    this.app.all('/api/landing-pages', async (req, res) => {
+      await this.proxyRequest(req, res, 'landing-page-service', '/api/landing-pages', '');
+    });
+    
+    this.app.all('/api/landing-pages/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'landing-page-service', '/api/landing-pages', '');
+    });
+
+    // Landing Page Templates routes
+    this.app.all('/api/landing-templates', async (req, res) => {
+      await this.proxyRequest(req, res, 'landing-page-service', '/api/landing-templates', '/templates');
+    });
+    
+    this.app.all('/api/landing-templates/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'landing-page-service', '/api/landing-templates', '/templates');
+    });
+
+    // Public landing page access (special route)
+    this.app.get('/p/:slug', async (req, res) => {
+      const targetUrl = `${this.serviceRegistry.getServiceUrl('landing-page-service')}/p/${req.params.slug}`;
+      
+      try {
+        const response = await fetch(targetUrl);
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType && contentType.includes('text/html')) {
+          // Return HTML for public landing pages
+          const html = await response.text();
+          res.setHeader('Content-Type', 'text/html');
+          res.send(html);
+        } else {
+          // Return JSON response
+          const data = await response.json();
+          res.status(response.status).json(data);
+        }
+      } catch (error) {
+        this.logger.error('Landing page access failed', { 
+          slug: req.params.slug,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        res.status(500).json({ 
+          success: false, 
+          error: { 
+            code: 'LANDING_PAGE_ERROR', 
+            message: 'Landing page access failed' 
+          }
+        });
+      }
     });
 
     // Short URL redirect with validity checking

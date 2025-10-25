@@ -63,6 +63,24 @@ export class ProxyController {
         requiresAuth: true
       },
       {
+        path: '/api/landing',
+        targetService: 'landing-page-service',
+        pathRewrite: '',
+        requiresAuth: false // Mix of public and private endpoints, handled by service
+      },
+      {
+        path: '/p',
+        targetService: 'landing-page-service',
+        pathRewrite: '/p',
+        requiresAuth: false // Public landing page view
+      },
+      {
+        path: '/preview',
+        targetService: 'landing-page-service',
+        pathRewrite: '/preview',
+        requiresAuth: false // Public preview functionality
+      },
+      {
         path: '/redirect',
         targetService: 'qr-service',
         pathRewrite: '/redirect',
@@ -139,7 +157,23 @@ export class ProxyController {
   }
 
   private findRoute(path: string): RouteConfig | null {
-    return this.routes.find(route => path.startsWith(route.path)) || null;
+    const matchedRoute = this.routes.find(route => path.startsWith(route.path)) || null;
+    
+    // Debug logging
+    if (!matchedRoute) {
+      this.logger.warn('Route not found', { 
+        requestedPath: path, 
+        availableRoutes: this.routes.map(r => r.path)
+      });
+    } else {
+      this.logger.debug('Route matched', { 
+        requestedPath: path, 
+        matchedRoute: matchedRoute.path,
+        targetService: matchedRoute.targetService 
+      });
+    }
+    
+    return matchedRoute;
   }
 
   private buildTargetUrl(route: RouteConfig, req: Request): string {
