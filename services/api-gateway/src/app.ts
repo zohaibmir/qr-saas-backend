@@ -375,6 +375,22 @@ class ApiGatewayApplication {
     });
   }
 
+  private async getDefaultUserId(): Promise<string | null> {
+    try {
+      // Try to get the first available user from the database
+      const response = await fetch(`${this.serviceRegistry.getServiceUrl('user-service')}/users?limit=1`);
+      if (response.ok) {
+        const data = await response.json() as any;
+        if (data.success && data.data && Array.isArray(data.data) && data.data.length > 0) {
+          return data.data[0].id;
+        }
+      }
+    } catch (error) {
+      this.logger.warn('Failed to fetch default user ID', { error: error instanceof Error ? error.message : 'Unknown' });
+    }
+    return null;
+  }
+
   private async proxyRequest(req: express.Request, res: express.Response, serviceName: string, fromPath: string, toPath: string): Promise<void> {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const targetPath = req.path.replace(fromPath, toPath);
@@ -390,9 +406,44 @@ class ApiGatewayApplication {
         targetUrl 
       });
       
+      // Prepare headers for the proxied request
+      const proxyHeaders: { [key: string]: string } = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Forward user identification headers if they exist, otherwise get a user ID from the database
+      if (req.headers['x-user-id']) {
+        proxyHeaders['x-user-id'] = req.headers['x-user-id'] as string;
+      } else if (req.headers['user-id']) {
+        proxyHeaders['user-id'] = req.headers['user-id'] as string;
+      } else if (req.headers['authorization']) {
+        // If we have an auth token, we could extract user ID from it
+        proxyHeaders['authorization'] = req.headers['authorization'] as string;
+        // For development, also try to get a valid user ID from the database
+        const defaultUserId = await this.getDefaultUserId();
+        if (defaultUserId) {
+          proxyHeaders['x-user-id'] = defaultUserId;
+        }
+      } else {
+        // Check for user ID in URL query params (for analytics frontend)
+        const userId = req.query?.userId as string;
+        if (userId) {
+          proxyHeaders['x-user-id'] = userId;
+        } else {
+          // Get a valid user ID from the database for development
+          const defaultUserId = await this.getDefaultUserId();
+          if (defaultUserId) {
+            proxyHeaders['x-user-id'] = defaultUserId;
+          } else {
+            // If we can't get a user ID from the database, log an error
+            this.logger.error('No user ID available and unable to fetch from database');
+          }
+        }
+      }
+      
       const response = await fetch(targetUrl, {
         method: req.method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: proxyHeaders,
         body: req.method !== 'GET' && req.body ? JSON.stringify(req.body) : undefined
       });
       
