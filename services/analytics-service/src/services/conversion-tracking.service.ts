@@ -454,6 +454,7 @@ export class ConversionTrackingService implements IConversionTrackingService {
     return {
       id: goalId,
       qrCodeId: 'sample-qr-id',
+      userId: 'sample-user-id',
       name: 'Sample Goal',
       type: 'url_visit',
       isActive: true,
@@ -468,6 +469,7 @@ export class ConversionTrackingService implements IConversionTrackingService {
       {
         id: 'goal-1',
         qrCodeId,
+        userId: 'sample-user-id',
         name: 'Website Visit',
         type: 'url_visit',
         isActive: true,

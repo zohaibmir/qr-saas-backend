@@ -12,6 +12,7 @@ import { HealthChecker } from './services/health-checker.service';
 import { HealthController } from './controllers/health.controller';
 import { ErrorHandler } from './middleware/error-handler.middleware';
 import { RequestLogger } from './middleware/request-logger.middleware';
+import { AdvancedAnalyticsRoutes } from './routes/advanced-analytics.routes';
 import { swaggerSpec } from './config/swagger';
 
 dotenv.config({ path: '../../.env' });
@@ -24,6 +25,7 @@ class ApiGatewayApplication {
   private healthController!: HealthController;
   private errorHandler!: ErrorHandler;
   private requestLogger!: RequestLogger;
+  private advancedAnalyticsRoutes!: AdvancedAnalyticsRoutes;
 
   constructor() {
     this.app = express();
@@ -40,6 +42,7 @@ class ApiGatewayApplication {
     this.healthController = new HealthController(this.healthChecker, this.logger);
     this.errorHandler = new ErrorHandler(this.logger);
     this.requestLogger = new RequestLogger(this.logger);
+    this.advancedAnalyticsRoutes = new AdvancedAnalyticsRoutes(this.logger, this.serviceRegistry);
 
     this.logger.info('Clean architecture dependencies initialized');
   }
@@ -51,8 +54,8 @@ class ApiGatewayApplication {
     this.app.use(express.urlencoded({ extended: true }));
 
     const limiter = rateLimit({
-      windowMs: 15 * 60 * 1000,
-      max: 100,
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 5000, // Much higher limit for development and analytics
       message: {
         success: false,
         error: {
@@ -127,6 +130,7 @@ class ApiGatewayApplication {
           'analytics-service': 'Scan tracking and analytics',
           'file-service': 'File upload and storage',
           'notification-service': 'Email/SMS with database persistence',
+          'team-service': 'Team and organization management with member invitations',
           'landing-page-service': 'Landing page builder with A/B testing and forms'
         },
         database: 'PostgreSQL with complete persistence',
@@ -196,7 +200,10 @@ class ApiGatewayApplication {
       await this.proxyRequest(req, res, 'qr-service', '/api/templates', '/templates');
     });
 
-    // Analytics routes - handle both base route and sub-routes
+    // Advanced Analytics routes - specific routes for advanced features
+    this.app.use('/api/analytics', this.advancedAnalyticsRoutes.getRouter());
+
+    // Analytics routes - handle basic analytics and any remaining routes
     this.app.all('/api/analytics', async (req, res) => {
       await this.proxyRequest(req, res, 'analytics-service', '/api/analytics', '/analytics');
     });
@@ -239,6 +246,35 @@ class ApiGatewayApplication {
     
     this.app.all('/api/landing-templates/*', async (req, res) => {
       await this.proxyRequest(req, res, 'landing-page-service', '/api/landing-templates', '/templates');
+    });
+
+    // Teams routes - handle with specific path logic
+    this.app.all('/api/teams/health', async (req, res) => {
+      await this.proxyRequest(req, res, 'team-service', '/api/teams/health', '/health');
+    });
+
+    this.app.all('/api/teams/organizations', async (req, res) => {
+      await this.proxyRequest(req, res, 'team-service', '/api/teams/organizations', '/api/v1/organizations');
+    });
+    
+    this.app.all('/api/teams/organizations/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'team-service', '/api/teams', '/api/v1');
+    });
+
+    this.app.all('/api/teams/members', async (req, res) => {
+      await this.proxyRequest(req, res, 'team-service', '/api/teams/members', '/api/v1/members');
+    });
+    
+    this.app.all('/api/teams/members/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'team-service', '/api/teams', '/api/v1');
+    });
+
+    this.app.all('/api/teams/invitations', async (req, res) => {
+      await this.proxyRequest(req, res, 'team-service', '/api/teams/invitations', '/api/v1/invitations');
+    });
+    
+    this.app.all('/api/teams/invitations/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'team-service', '/api/teams', '/api/v1');
     });
 
     // Public landing page access (special route)

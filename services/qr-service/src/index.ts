@@ -488,18 +488,27 @@ class QRServiceApplication {
   }
 
   private extractUserId(req: express.Request): string {
-    // TODO: Extract user ID from JWT token
-    // For now, extract from request body, query params, or use fallback
-    const userId = req.body?.userId || req.query?.userId || req.headers?.['x-user-id'];
+    // Extract user ID from headers (x-user-id), query params, or request body
+    const userId = req.headers['x-user-id'] || 
+                   req.headers['X-User-Id'] || 
+                   req.headers['user-id'] || 
+                   req.query?.userId || 
+                   req.body?.userId;
     
     if (userId && typeof userId === 'string') {
       return userId;
     }
     
-    // Fallback to existing user ID for testing
-    return '3d695410-eba1-42dd-82e1-dd69b935e7b3';
+    // For debugging - log the issue
+    console.error('No user ID found in request', {
+      headers: Object.keys(req.headers),
+      query: req.query,
+      body: req.body
+    });
+    
+    // Return a more obvious error ID instead of silent failure
+    throw new Error('User ID is required but not found in request headers or parameters');
   }
-
   private handleRouteError(error: any, res: express.Response, defaultCode: string): void {
     this.logger.error('Route error', { 
       error: error instanceof Error ? error.message : 'Unknown error',

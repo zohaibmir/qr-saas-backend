@@ -85,6 +85,12 @@ export class ProxyController {
         targetService: 'qr-service',
         pathRewrite: '/redirect',
         requiresAuth: false
+      },
+      {
+        path: '/api/teams',
+        targetService: 'team-service',
+        pathRewrite: '/api/v1',
+        requiresAuth: true
       }
     ];
   }

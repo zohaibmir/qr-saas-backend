@@ -7,3 +7,4 @@ export * from './types/landing-page.types';
 export * from './interfaces/repositories.interface';
 export * from './interfaces/services.interface';
 export * from './utils/errors';
+export * from './services/qr-analytics-integration.service';

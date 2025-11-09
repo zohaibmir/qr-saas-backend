@@ -6,11 +6,11 @@
     "name": "Zohaib Zahid",
     "email": "zohaib.mir@gmail.com"
   },
-  "main": "dist/index.js",
+  "main": "dist/services/api-gateway/src/index.js",
   "scripts": {
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/services/api-gateway/src/index.js",
     "test": "jest --passWithNoTests",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix"

@@ -1,5 +1,8 @@
 import { AnalyticsSnapshot } from '../../../../shared/src/types/analytics.types';
 
+// Re-export AnalyticsSnapshot for consistency
+export { AnalyticsSnapshot } from '../../../../shared/src/types/analytics.types';
+
 // Domain Entities
 export interface ScanEvent {
   id: string;
@@ -67,6 +70,7 @@ export interface IAnalyticsRepository {
   createScanEvent(scanEvent: Omit<ScanEvent, 'id'>): Promise<ScanEvent>;
   getScanEventsByQRCode(qrCodeId: string, startDate?: Date, endDate?: Date): Promise<ScanEvent[]>;
   getAnalyticsSummary(qrCodeId: string, startDate?: Date, endDate?: Date): Promise<AnalyticsSummary>;
+  getUserAnalyticsSummary(userId?: string, startDate?: Date, endDate?: Date): Promise<AnalyticsSummary>;
   getTotalScansForQRCode(qrCodeId: string): Promise<number>;
   getUniqueScansForQRCode(qrCodeId: string): Promise<number>;
   getScansGroupedByDate(qrCodeId: string, startDate?: Date, endDate?: Date): Promise<{ date: string; scans: number }[]>;
@@ -114,6 +118,7 @@ export interface IAnalyticsRepository {
 export interface IAnalyticsService {
   trackScan(scanData: TrackScanRequest): Promise<ServiceResponse<ScanEvent>>;
   getQRAnalytics(request: GetAnalyticsRequest): Promise<ServiceResponse<AnalyticsSummary>>;
+  getUserAnalytics(userId?: string, startDate?: Date, endDate?: Date): Promise<ServiceResponse<AnalyticsSummary>>;
   exportAnalytics(qrCodeId: string, format: 'json' | 'csv', startDate?: Date, endDate?: Date): Promise<ServiceResponse<string>>;
   getAdvancedAnalytics(request: AdvancedAnalyticsRequest): Promise<ServiceResponse<AdvancedAnalyticsResponse>>;
 }
@@ -293,6 +298,7 @@ export interface PeakTimeAnalysis {
 export interface ConversionGoal {
   id: string;
   qrCodeId: string;
+  userId: string;
   name: string;
   type: 'url_visit' | 'form_submit' | 'purchase' | 'download' | 'custom';
   targetUrl?: string;
@@ -420,9 +426,17 @@ export interface ExportResult {
 }
 
 export interface RealTimeMetrics {
+  qrCodeId: string;
+  timestamp: Date;
+  activeScans: number;
   currentViewers: number;
   scansPerSecond: number;
-  scansPerMinute: number;
+  peakConcurrency: number;
+  responseTime: number;
+  errorRate: number;
+  dataTransfer: number;
+  connectionStatus: 'connected' | 'disconnected' | 'error';
+  lastUpdated: Date;
   topCountries: Array<{ country: string; count: number }>;
   topDevices: Array<{ device: string; count: number }>;
   recentScans: Array<{
@@ -472,6 +486,7 @@ export interface ServiceResponse<T> {
     timestamp: string;
     requestId?: string;
     version?: string;
+    [key: string]: any; // Allow additional properties
   };
 }
 

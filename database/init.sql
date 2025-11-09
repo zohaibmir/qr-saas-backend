@@ -595,4 +595,140 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- ===================================
+-- TEAM MANAGEMENT SCHEMA (Phase 4A)
+-- ===================================
+
+-- Organizations table
+CREATE TABLE organizations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(100) UNIQUE NOT NULL,
+    description TEXT,
+    logo_url TEXT,
+    settings JSONB DEFAULT '{}',
+    subscription_plan_id UUID,
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Organization members table
+CREATE TABLE organization_members (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role VARCHAR(20) NOT NULL CHECK (role IN ('owner', 'admin', 'editor', 'viewer')),
+    permissions JSONB DEFAULT '{}',
+    invited_by UUID REFERENCES users(id),
+    invited_at TIMESTAMP DEFAULT NOW(),
+    accepted_at TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('pending', 'active', 'suspended')),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(organization_id, user_id)
+);
+
+-- Organization invitations table
+CREATE TABLE organization_invitations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    email VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'editor', 'viewer')),
+    invited_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(64) UNIQUE NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    accepted_at TIMESTAMP,
+    accepted_by UUID REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(organization_id, email)
+);
+
+-- Indexes for organizations
+CREATE INDEX idx_organizations_slug ON organizations(slug);
+CREATE INDEX idx_organizations_created_by ON organizations(created_by);
+CREATE INDEX idx_organizations_active ON organizations(is_active);
+
+-- Indexes for organization_members
+CREATE INDEX idx_org_members_organization_id ON organization_members(organization_id);
+CREATE INDEX idx_org_members_user_id ON organization_members(user_id);
+CREATE INDEX idx_org_members_role ON organization_members(role);
+CREATE INDEX idx_org_members_status ON organization_members(status);
+
+-- Indexes for organization_invitations
+CREATE INDEX idx_org_invitations_organization_id ON organization_invitations(organization_id);
+CREATE INDEX idx_org_invitations_email ON organization_invitations(email);
+CREATE INDEX idx_org_invitations_token ON organization_invitations(token);
+CREATE INDEX idx_org_invitations_expires_at ON organization_invitations(expires_at);
+
+-- Add organization context to QR codes (for shared QR codes)
+ALTER TABLE qr_codes ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id);
+ALTER TABLE qr_codes ADD COLUMN IF NOT EXISTS is_shared_with_team BOOLEAN DEFAULT false;
+
+-- Index for QR codes organization context
+CREATE INDEX IF NOT EXISTS idx_qr_codes_organization_id ON qr_codes(organization_id);
+CREATE INDEX IF NOT EXISTS idx_qr_codes_shared_with_team ON qr_codes(is_shared_with_team);
+
+-- Helper functions for team management
+CREATE OR REPLACE FUNCTION get_user_organizations(p_user_id UUID)
+RETURNS TABLE(
+    organization_id UUID,
+    organization_name VARCHAR(255),
+    organization_slug VARCHAR(100),
+    user_role VARCHAR(20),
+    member_since TIMESTAMP
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        o.id,
+        o.name,
+        o.slug,
+        om.role,
+        om.created_at
+    FROM organizations o
+    INNER JOIN organization_members om ON o.id = om.organization_id
+    WHERE om.user_id = p_user_id 
+      AND o.is_active = true 
+      AND om.status = 'active'
+    ORDER BY om.created_at DESC;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION check_organization_permission(p_user_id UUID, p_organization_id UUID, p_permission VARCHAR(50))
+RETURNS BOOLEAN AS $$
+DECLARE
+    user_role VARCHAR(20);
+    has_permission BOOLEAN := false;
+BEGIN
+    -- Get user role in organization
+    SELECT role INTO user_role
+    FROM organization_members
+    WHERE user_id = p_user_id 
+      AND organization_id = p_organization_id 
+      AND status = 'active';
+    
+    IF user_role IS NULL THEN
+        RETURN false;
+    END IF;
+    
+    -- Check permissions based on role and permission type
+    CASE 
+        WHEN user_role = 'owner' THEN
+            has_permission := true;
+        WHEN user_role = 'admin' THEN
+            has_permission := p_permission NOT IN ('organization.delete', 'organization.manage_billing');
+        WHEN user_role = 'editor' THEN
+            has_permission := p_permission IN ('organization.read', 'qr_codes.create', 'qr_codes.read', 'qr_codes.update', 'qr_codes.share_with_team', 'analytics.view_own');
+        WHEN user_role = 'viewer' THEN
+            has_permission := p_permission IN ('organization.read', 'qr_codes.read');
+        ELSE
+            has_permission := false;
+    END CASE;
+    
+    RETURN has_permission;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Database initialization complete

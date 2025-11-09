@@ -5,14 +5,12 @@ import {
   IAnalyticsRepository, 
   ILogger,
   DatabaseError,
-  NotFoundError 
-} from '../interfaces';
-import {
+  NotFoundError,
   ConversionGoal,
   ConversionEvent,
   ConversionFunnel,
   PeakTimeAnalysis
-} from '../../../../shared/src/types/analytics.types';
+} from '../interfaces';
 
 export class AnalyticsRepository implements IAnalyticsRepository {
   constructor(
@@ -152,12 +150,12 @@ export class AnalyticsRepository implements IAnalyticsRepository {
         deviceBreakdown,
         geographicData
       ] = await Promise.all([
-        this.getTotalScansForQRCode(qrCodeId),
-        this.getUniqueScansForQRCode(qrCodeId),
+        this.getTotalScans(qrCodeId, startDate, endDate),
+        this.getUniqueScans(qrCodeId, startDate, endDate),
         this.getScansGroupedByDate(qrCodeId, startDate, endDate),
-        this.getPlatformBreakdown(qrCodeId),
-        this.getDeviceBreakdown(qrCodeId),
-        this.getGeographicData(qrCodeId)
+        this.getPlatformBreakdown(qrCodeId, startDate, endDate),
+        this.getDeviceBreakdown(qrCodeId, startDate, endDate),
+        this.getGeographicData(qrCodeId, startDate, endDate)
       ]);
 
       const timeSeriesData = scansByDate.map(item => ({
@@ -193,48 +191,227 @@ export class AnalyticsRepository implements IAnalyticsRepository {
     }
   }
 
-  async getTotalScansForQRCode(qrCodeId: string): Promise<number> {
+  async getUserAnalyticsSummary(userId?: string, startDate?: Date, endDate?: Date): Promise<any> {
     try {
-      const query = 'SELECT COUNT(*) as total FROM scan_events WHERE qr_code_id = $1';
-      const result = await this.database.query(query, [qrCodeId]);
-      return parseInt(result.rows[0].total);
+      this.logger.info('=== START getUserAnalyticsSummary ===', { userId, startDate, endDate });
+      
+      // Debug: Check if we're using userId path or all users path
+      if (userId) {
+        this.logger.info('Using USER-SPECIFIC analytics path', { userId });
+      } else {
+        this.logger.info('Using ALL USERS analytics path');
+      }
+      
+      // Get aggregated data across user's QR codes (or all users if userId not provided)
+      this.logger.info('Starting parallel data fetch...');
+      
+      const [
+        totalScans,
+        uniqueScans,
+        scanTrends,
+        platformBreakdown,
+        deviceBreakdown,
+        geographicData
+      ] = await Promise.all([
+        userId ? this.getTotalScansForUser(userId, startDate, endDate) : this.getTotalScans(undefined, startDate, endDate),
+        userId ? this.getUniqueScansForUser(userId, startDate, endDate) : this.getUniqueScans(undefined, startDate, endDate),
+        userId ? this.getScansGroupedByDateForUser(userId, startDate, endDate) : this.getScansGroupedByDate(undefined, startDate, endDate),
+        userId ? this.getPlatformBreakdownForUser(userId, startDate, endDate) : this.getPlatformBreakdown(undefined, startDate, endDate),
+        userId ? this.getDeviceBreakdownForUser(userId, startDate, endDate) : this.getDeviceBreakdown(undefined, startDate, endDate),
+        userId ? this.getGeographicDataForUser(userId, startDate, endDate) : this.getGeographicData(undefined, startDate, endDate)
+      ]);
+
+      this.logger.info('=== ANALYTICS RESULTS ===', {
+        totalScans,
+        uniqueScans,
+        scanTrendsCount: scanTrends.length,
+        platformBreakdownKeys: Object.keys(platformBreakdown),
+        deviceBreakdownKeys: Object.keys(deviceBreakdown),
+        geographicDataCount: geographicData.length
+      });
+
+      return {
+        totalScans,
+        uniqueScans,
+        scanTrends,
+        platformBreakdown,
+        deviceBreakdown,
+        geographicData
+      };
     } catch (error) {
-      this.logger.error('Failed to get total scans', { error: error instanceof Error ? error.message : 'Unknown error', qrCodeId });
+      this.logger.error('Failed to get user analytics summary', { error: error instanceof Error ? error.message : 'Unknown error' });
+      throw new DatabaseError('Failed to get user analytics summary');
+    }
+  }
+
+  async getTotalScans(qrCodeId?: string, startDate?: Date, endDate?: Date, userId?: string): Promise<number> {
+    try {
+      let query = 'SELECT COUNT(*) as total FROM scan_events se';
+      const values: any[] = [];
+      let whereConditions: string[] = [];
+
+      this.logger.info('=== getTotalScans DEBUG ===', { qrCodeId, startDate, endDate, userId });
+
+      if (qrCodeId) {
+        whereConditions.push(`se.qr_code_id = $${values.length + 1}`);
+        values.push(qrCodeId);
+        this.logger.info('Added qrCodeId condition', { qrCodeId });
+      } else if (userId) {
+        // Join with qr_codes table to filter by user ownership (cast UUID to text for join)
+        query = 'SELECT COUNT(*) as total FROM scan_events se JOIN qr_codes qr ON se.qr_code_id = qr.id::text';
+        whereConditions.push(`qr.user_id = $${values.length + 1}`);
+        values.push(userId);
+        this.logger.info('Added userId condition with JOIN', { userId });
+      } else {
+        this.logger.info('No qrCodeId or userId - querying ALL scan_events');
+      }
+
+      if (startDate) {
+        whereConditions.push(`se.timestamp >= $${values.length + 1}`);
+        values.push(startDate);
+        this.logger.info('Added startDate condition', { startDate });
+      }
+
+      if (endDate) {
+        whereConditions.push(`se.timestamp <= $${values.length + 1}`);
+        values.push(endDate);
+        this.logger.info('Added endDate condition', { endDate });
+      }
+
+      if (whereConditions.length > 0) {
+        query += ' WHERE ' + whereConditions.join(' AND ');
+      }
+
+      this.logger.info('Final query and values', { query, values });
+
+      const result = await this.database.query(query, values);
+      const total = parseInt(result.rows[0].total);
+      
+      this.logger.info('Query result', { total, rawResult: result.rows[0] });
+      
+      return total;
+    } catch (error) {
+      this.logger.error('Failed to get total scans', { 
+        error: error instanceof Error ? error.message : 'Unknown error', 
+        stack: error instanceof Error ? error.stack : undefined,
+        qrCodeId, 
+        userId 
+      });
       throw new DatabaseError('Failed to get total scans');
     }
   }
 
-  async getUniqueScansForQRCode(qrCodeId: string): Promise<number> {
-    try {
-      const query = 'SELECT COUNT(DISTINCT ip_address) as unique_scans FROM scan_events WHERE qr_code_id = $1 AND ip_address IS NOT NULL';
-      const result = await this.database.query(query, [qrCodeId]);
-      return parseInt(result.rows[0].unique_scans);
-    } catch (error) {
-      this.logger.error('Failed to get unique scans', { error: error instanceof Error ? error.message : 'Unknown error', qrCodeId });
-      throw new DatabaseError('Failed to get unique scans');
-    }
+  // User-specific helper methods
+  async getTotalScansForUser(userId?: string, startDate?: Date, endDate?: Date): Promise<number> {
+    return this.getTotalScans(undefined, startDate, endDate, userId);
   }
 
-  async getScansGroupedByDate(qrCodeId: string, startDate?: Date, endDate?: Date): Promise<{ date: string; scans: number }[]> {
+  async getUniqueScansForUser(userId?: string, startDate?: Date, endDate?: Date): Promise<number> {
+    return this.getUniqueScans(undefined, startDate, endDate, userId);
+  }
+
+  async getScansGroupedByDateForUser(userId?: string, startDate?: Date, endDate?: Date): Promise<{ date: string; scans: number }[]> {
+    return this.getScansGroupedByDate(undefined, startDate, endDate, userId);
+  }
+
+  async getPlatformBreakdownForUser(userId?: string, startDate?: Date, endDate?: Date): Promise<{ [platform: string]: number }> {
+    return this.getPlatformBreakdown(undefined, startDate, endDate, userId);
+  }
+
+  async getDeviceBreakdownForUser(userId?: string, startDate?: Date, endDate?: Date): Promise<{ [device: string]: number }> {
+    return this.getDeviceBreakdown(undefined, startDate, endDate, userId);
+  }
+
+  async getGeographicDataForUser(userId?: string, startDate?: Date, endDate?: Date): Promise<{ country: string; scans: number }[]> {
+    return this.getGeographicData(undefined, startDate, endDate, userId);
+  }
+
+  // Keep the original method for backwards compatibility
+  async getTotalScansForQRCode(qrCodeId: string): Promise<number> {
+    return this.getTotalScans(qrCodeId);
+  }
+
+  async getUniqueScans(qrCodeId?: string, startDate?: Date, endDate?: Date, userId?: string): Promise<number> {
     try {
-      let query = `
-        SELECT DATE(timestamp) as date, COUNT(*) as scans
-        FROM scan_events 
-        WHERE qr_code_id = $1
-      `;
-      const values: any[] = [qrCodeId];
+      let query = 'SELECT COUNT(DISTINCT se.ip_address) as unique_scans FROM scan_events se';
+      const values: any[] = [];
+      let whereConditions: string[] = ['se.ip_address IS NOT NULL'];
+
+      if (qrCodeId) {
+        whereConditions.push(`se.qr_code_id = $${values.length + 1}`);
+        values.push(qrCodeId);
+      } else if (userId) {
+        // Join with qr_codes table to filter by user ownership
+        query = 'SELECT COUNT(DISTINCT se.ip_address) as unique_scans FROM scan_events se JOIN qr_codes qr ON se.qr_code_id = qr.id::text';
+        whereConditions.push(`qr.user_id = $${values.length + 1}`);
+        values.push(userId);
+      }
 
       if (startDate) {
-        query += ` AND timestamp >= $${values.length + 1}`;
+        whereConditions.push(`se.timestamp >= $${values.length + 1}`);
         values.push(startDate);
       }
 
       if (endDate) {
-        query += ` AND timestamp <= $${values.length + 1}`;
+        whereConditions.push(`se.timestamp <= $${values.length + 1}`);
         values.push(endDate);
       }
 
-      query += ` GROUP BY DATE(timestamp) ORDER BY date DESC`;
+      if (whereConditions.length > 0) {
+        query += ' WHERE ' + whereConditions.join(' AND ');
+      }
+
+      const result = await this.database.query(query, values);
+      return parseInt(result.rows[0].unique_scans);
+    } catch (error) {
+      this.logger.error('Failed to get unique scans', { error: error instanceof Error ? error.message : 'Unknown error', qrCodeId, userId });
+      throw new DatabaseError('Failed to get unique scans');
+    }
+  }
+
+  // Keep the original method for backwards compatibility
+  async getUniqueScansForQRCode(qrCodeId: string): Promise<number> {
+    return this.getUniqueScans(qrCodeId);
+  }
+
+  async getScansGroupedByDate(qrCodeId?: string, startDate?: Date, endDate?: Date, userId?: string): Promise<{ date: string; scans: number }[]> {
+    try {
+      let query = `
+        SELECT DATE(se.timestamp) as date, COUNT(*) as scans
+        FROM scan_events se
+      `;
+      const values: any[] = [];
+      let whereConditions: string[] = [];
+
+      if (qrCodeId) {
+        whereConditions.push(`se.qr_code_id = $${values.length + 1}`);
+        values.push(qrCodeId);
+      } else if (userId) {
+        // Join with qr_codes table to filter by user ownership
+        query = `
+          SELECT DATE(se.timestamp) as date, COUNT(*) as scans
+          FROM scan_events se 
+          JOIN qr_codes qr ON se.qr_code_id = qr.id::text
+        `;
+        whereConditions.push(`qr.user_id = $${values.length + 1}`);
+        values.push(userId);
+      }
+
+      if (startDate) {
+        whereConditions.push(`se.timestamp >= $${values.length + 1}`);
+        values.push(startDate);
+      }
+
+      if (endDate) {
+        whereConditions.push(`se.timestamp <= $${values.length + 1}`);
+        values.push(endDate);
+      }
+
+      if (whereConditions.length > 0) {
+        query += ' WHERE ' + whereConditions.join(' AND ');
+      }
+
+      query += ` GROUP BY DATE(se.timestamp) ORDER BY date DESC`;
 
       const result = await this.database.query(query, values);
       return result.rows.map(row => ({
@@ -242,20 +419,51 @@ export class AnalyticsRepository implements IAnalyticsRepository {
         scans: parseInt(row.scans)
       }));
     } catch (error) {
-      this.logger.error('Failed to get scans by date', { error: error instanceof Error ? error.message : 'Unknown error', qrCodeId });
+      this.logger.error('Failed to get scans by date', { error: error instanceof Error ? error.message : 'Unknown error', qrCodeId, userId });
       throw new DatabaseError('Failed to get scans by date');
     }
   }
 
-  async getPlatformBreakdown(qrCodeId: string): Promise<{ [platform: string]: number }> {
+  async getPlatformBreakdown(qrCodeId?: string, startDate?: Date, endDate?: Date, userId?: string): Promise<{ [platform: string]: number }> {
     try {
-      const query = `
-        SELECT platform, COUNT(*) as count
-        FROM scan_events 
-        WHERE qr_code_id = $1 AND platform IS NOT NULL
-        GROUP BY platform
+      let query = `
+        SELECT se.platform, COUNT(*) as count
+        FROM scan_events se
       `;
-      const result = await this.database.query(query, [qrCodeId]);
+      const values: any[] = [];
+      let whereConditions: string[] = ['se.platform IS NOT NULL'];
+
+      if (qrCodeId) {
+        whereConditions.push(`se.qr_code_id = $${values.length + 1}`);
+        values.push(qrCodeId);
+      } else if (userId) {
+        // Join with qr_codes table to filter by user ownership
+        query = `
+          SELECT se.platform, COUNT(*) as count
+          FROM scan_events se 
+          JOIN qr_codes qr ON se.qr_code_id = qr.id::text
+        `;
+        whereConditions.push(`qr.user_id = $${values.length + 1}`);
+        values.push(userId);
+      }
+
+      if (startDate) {
+        whereConditions.push(`se.timestamp >= $${values.length + 1}`);
+        values.push(startDate);
+      }
+
+      if (endDate) {
+        whereConditions.push(`se.timestamp <= $${values.length + 1}`);
+        values.push(endDate);
+      }
+
+      if (whereConditions.length > 0) {
+        query += ' WHERE ' + whereConditions.join(' AND ');
+      }
+
+      query += ` GROUP BY se.platform`;
+
+      const result = await this.database.query(query, values);
       
       const breakdown: { [platform: string]: number } = {};
       result.rows.forEach(row => {
@@ -264,20 +472,51 @@ export class AnalyticsRepository implements IAnalyticsRepository {
       
       return breakdown;
     } catch (error) {
-      this.logger.error('Failed to get platform breakdown', { error: error instanceof Error ? error.message : 'Unknown error', qrCodeId });
+      this.logger.error('Failed to get platform breakdown', { error: error instanceof Error ? error.message : 'Unknown error', qrCodeId, userId });
       throw new DatabaseError('Failed to get platform breakdown');
     }
   }
 
-  async getDeviceBreakdown(qrCodeId: string): Promise<{ [device: string]: number }> {
+  async getDeviceBreakdown(qrCodeId?: string, startDate?: Date, endDate?: Date, userId?: string): Promise<{ [device: string]: number }> {
     try {
-      const query = `
-        SELECT device, COUNT(*) as count
-        FROM scan_events 
-        WHERE qr_code_id = $1 AND device IS NOT NULL
-        GROUP BY device
+      let query = `
+        SELECT se.device, COUNT(*) as count
+        FROM scan_events se
       `;
-      const result = await this.database.query(query, [qrCodeId]);
+      const values: any[] = [];
+      let whereConditions: string[] = ['se.device IS NOT NULL'];
+
+      if (qrCodeId) {
+        whereConditions.push(`se.qr_code_id = $${values.length + 1}`);
+        values.push(qrCodeId);
+      } else if (userId) {
+        // Join with qr_codes table to filter by user ownership
+        query = `
+          SELECT se.device, COUNT(*) as count
+          FROM scan_events se 
+          JOIN qr_codes qr ON se.qr_code_id = qr.id::text
+        `;
+        whereConditions.push(`qr.user_id = $${values.length + 1}`);
+        values.push(userId);
+      }
+
+      if (startDate) {
+        whereConditions.push(`se.timestamp >= $${values.length + 1}`);
+        values.push(startDate);
+      }
+
+      if (endDate) {
+        whereConditions.push(`se.timestamp <= $${values.length + 1}`);
+        values.push(endDate);
+      }
+
+      if (whereConditions.length > 0) {
+        query += ' WHERE ' + whereConditions.join(' AND ');
+      }
+
+      query += ` GROUP BY se.device`;
+
+      const result = await this.database.query(query, values);
       
       const breakdown: { [device: string]: number } = {};
       result.rows.forEach(row => {
@@ -286,29 +525,58 @@ export class AnalyticsRepository implements IAnalyticsRepository {
       
       return breakdown;
     } catch (error) {
-      this.logger.error('Failed to get device breakdown', { error: error instanceof Error ? error.message : 'Unknown error', qrCodeId });
+      this.logger.error('Failed to get device breakdown', { error: error instanceof Error ? error.message : 'Unknown error', qrCodeId, userId });
       throw new DatabaseError('Failed to get device breakdown');
     }
   }
 
-  async getGeographicData(qrCodeId: string): Promise<{ country: string; scans: number; percentage: number }[]> {
+  async getGeographicData(qrCodeId?: string, startDate?: Date, endDate?: Date, userId?: string): Promise<{ country: string; scans: number; percentage: number }[]> {
     try {
-      const totalQuery = 'SELECT COUNT(*) as total FROM scan_events WHERE qr_code_id = $1';
-      const totalResult = await this.database.query(totalQuery, [qrCodeId]);
-      const totalScans = parseInt(totalResult.rows[0].total);
+      // Get total scans first
+      const totalScans = await this.getTotalScans(qrCodeId, startDate, endDate, userId);
 
       if (totalScans === 0) {
         return [];
       }
 
-      const query = `
-        SELECT country, COUNT(*) as scans
-        FROM scan_events 
-        WHERE qr_code_id = $1 AND country IS NOT NULL
-        GROUP BY country
-        ORDER BY scans DESC
+      let query = `
+        SELECT se.country, COUNT(*) as scans
+        FROM scan_events se
       `;
-      const result = await this.database.query(query, [qrCodeId]);
+      const values: any[] = [];
+      let whereConditions: string[] = ['se.country IS NOT NULL'];
+
+      if (qrCodeId) {
+        whereConditions.push(`se.qr_code_id = $${values.length + 1}`);
+        values.push(qrCodeId);
+      } else if (userId) {
+        // Join with qr_codes table to filter by user ownership
+        query = `
+          SELECT se.country, COUNT(*) as scans
+          FROM scan_events se 
+          JOIN qr_codes qr ON se.qr_code_id = qr.id::text
+        `;
+        whereConditions.push(`qr.user_id = $${values.length + 1}`);
+        values.push(userId);
+      }
+
+      if (startDate) {
+        whereConditions.push(`se.timestamp >= $${values.length + 1}`);
+        values.push(startDate);
+      }
+
+      if (endDate) {
+        whereConditions.push(`se.timestamp <= $${values.length + 1}`);
+        values.push(endDate);
+      }
+
+      if (whereConditions.length > 0) {
+        query += ' WHERE ' + whereConditions.join(' AND ');
+      }
+
+      query += ` GROUP BY se.country ORDER BY scans DESC`;
+
+      const result = await this.database.query(query, values);
       
       return result.rows.map(row => ({
         country: row.country,
@@ -316,23 +584,25 @@ export class AnalyticsRepository implements IAnalyticsRepository {
         percentage: Math.round((parseInt(row.scans) / totalScans) * 100)
       }));
     } catch (error) {
-      this.logger.error('Failed to get geographic data', { error: error instanceof Error ? error.message : 'Unknown error', qrCodeId });
+      this.logger.error('Failed to get geographic data', { error: error instanceof Error ? error.message : 'Unknown error', qrCodeId, userId });
       throw new DatabaseError('Failed to get geographic data');
     }
   }
+
+
 
   // ===============================================
   // ADVANCED ANALYTICS METHODS
   // ===============================================
 
   // Conversion Tracking Methods
-  async createConversionGoal(goal: ConversionGoal): Promise<ConversionGoal> {
+  async createConversionGoal(goal: Omit<ConversionGoal, 'id' | 'createdAt' | 'updatedAt'>): Promise<ConversionGoal> {
     try {
       const result = await this.database.query(`
-        INSERT INTO conversion_goals (id, qr_code_id, name, goal_type, target_url, target_value, is_active, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+        INSERT INTO conversion_goals (id, qr_code_id, user_id, name, goal_type, target_url, value_amount, is_active, created_at, updated_at)
+        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
         RETURNING *
-      `, [goal.id, goal.qrCodeId, goal.name, goal.type, goal.targetUrl, goal.targetValue, goal.isActive]);
+      `, [goal.qrCodeId, goal.userId || null, goal.name, goal.type, goal.targetUrl, goal.targetValue, goal.isActive]);
       
       return this.mapRowToConversionGoal(result.rows[0]);
     } catch (error) {
@@ -467,6 +737,272 @@ export class AnalyticsRepository implements IAnalyticsRepository {
         goalId 
       });
       throw new DatabaseError('Failed to get conversion events by goal');
+    }
+  }
+
+  // ========== SUPER ADMIN ANALYTICS METHODS ==========
+  
+  async getSuperAdminSystemMetrics(): Promise<{totalUsers: number; totalQRCodes: number; totalScans: number}> {
+    try {
+      const query = `
+        SELECT 
+          (SELECT COUNT(*) FROM users) as total_users,
+          (SELECT COUNT(*) FROM qr_codes WHERE is_active = true) as total_qr_codes,
+          (SELECT COUNT(*) FROM scan_events) as total_scans
+      `;
+
+      const result = await this.database.query(query);
+      const row = result.rows[0];
+
+      return {
+        totalUsers: parseInt(row.total_users) || 0,
+        totalQRCodes: parseInt(row.total_qr_codes) || 0,
+        totalScans: parseInt(row.total_scans) || 0
+      };
+    } catch (error) {
+      this.logger.error('Failed to get super admin system metrics', { error });
+      throw new DatabaseError('Failed to fetch system metrics');
+    }
+  }
+  
+  async getTopUsersByScans(limit: number = 10): Promise<Array<{userId: string; totalScans: number; qrCodesCount: number; plan: string}>> {
+    try {
+      const query = `
+        SELECT 
+          u.email as user_id,
+          COUNT(se.id) as total_scans,
+          COUNT(DISTINCT qc.id) as qr_codes_count,
+          COALESCE(u.subscription_tier, 'free') as plan
+        FROM users u
+        LEFT JOIN qr_codes qc ON qc.user_id = u.id AND qc.is_active = true
+        LEFT JOIN scan_events se ON se.qr_code_id = qc.id::text
+        GROUP BY u.id, u.email, u.subscription_tier
+        HAVING COUNT(se.id) > 0
+        ORDER BY total_scans DESC
+        LIMIT $1
+      `;
+
+      const result = await this.database.query(query, [limit]);
+      return result.rows.map(row => ({
+        userId: row.user_id,
+        totalScans: parseInt(row.total_scans) || 0,
+        qrCodesCount: parseInt(row.qr_codes_count) || 0,
+        plan: row.plan || 'free'
+      }));
+    } catch (error) {
+      this.logger.error('Failed to get top users by scans', { error });
+      throw new DatabaseError('Failed to fetch top users');
+    }
+  }
+  
+  async getTopQRCodesByScans(limit: number = 10): Promise<Array<{qrCodeId: string; scans: number; owner: string; type: string}>> {
+    try {
+      const query = `
+        SELECT 
+          qc.id as qr_code_id,
+          COUNT(se.id) as scans,
+          u.email as owner,
+          qc.type
+        FROM qr_codes qc
+        LEFT JOIN scan_events se ON se.qr_code_id = qc.id::text
+        LEFT JOIN users u ON u.id = qc.user_id
+        WHERE qc.is_active = true
+        GROUP BY qc.id, u.email, qc.type
+        HAVING COUNT(se.id) > 0
+        ORDER BY scans DESC
+        LIMIT $1
+      `;
+
+      const result = await this.database.query(query, [limit]);
+      return result.rows.map(row => ({
+        qrCodeId: row.qr_code_id,
+        scans: parseInt(row.scans) || 0,
+        owner: row.owner || 'unknown',
+        type: row.type || 'url'
+      }));
+    } catch (error) {
+      this.logger.error('Failed to get top QR codes by scans', { error });
+      throw new DatabaseError('Failed to fetch top QR codes');
+    }
+  }
+  
+  async getAnalyticsByCountry(limit: number = 10): Promise<Array<{country: string; users: number; scans: number}>> {
+    try {
+      const query = `
+        SELECT 
+          COALESCE(se.country, 'Unknown') as country,
+          COUNT(DISTINCT qc.user_id) as users,
+          COUNT(se.id) as scans
+        FROM scan_events se
+        LEFT JOIN qr_codes qc ON qc.id::text = se.qr_code_id
+        WHERE se.country IS NOT NULL AND se.country != ''
+        GROUP BY se.country
+        ORDER BY scans DESC
+        LIMIT $1
+      `;
+
+      const result = await this.database.query(query, [limit]);
+      return result.rows.map(row => ({
+        country: row.country,
+        users: parseInt(row.users) || 0,
+        scans: parseInt(row.scans) || 0
+      }));
+    } catch (error) {
+      this.logger.error('Failed to get analytics by country', { error });
+      throw new DatabaseError('Failed to fetch country analytics');
+    }
+  }
+  
+  async getAnalyticsByPlan(): Promise<Array<{plan: string; users: number; revenue: number; scans: number}>> {
+    try {
+      const query = `
+        SELECT 
+          COALESCE(u.subscription_tier, 'free') as plan,
+          COUNT(DISTINCT u.id) as users,
+          CASE 
+            WHEN u.subscription_tier = 'pro' THEN COUNT(DISTINCT u.id) * 19
+            WHEN u.subscription_tier = 'business' THEN COUNT(DISTINCT u.id) * 49  
+            WHEN u.subscription_tier = 'enterprise' THEN COUNT(DISTINCT u.id) * 199
+            ELSE 0
+          END as revenue,
+          COUNT(se.id) as scans
+        FROM users u
+        LEFT JOIN qr_codes qc ON qc.user_id = u.id AND qc.is_active = true
+        LEFT JOIN scan_events se ON se.qr_code_id = qc.id::text
+        GROUP BY u.subscription_tier
+        ORDER BY users DESC
+      `;
+
+      const result = await this.database.query(query);
+      return result.rows.map(row => ({
+        plan: row.plan || 'free',
+        users: parseInt(row.users) || 0,
+        revenue: parseInt(row.revenue) || 0,
+        scans: parseInt(row.scans) || 0
+      }));
+    } catch (error) {
+      this.logger.error('Failed to get analytics by plan', { error });
+      throw new DatabaseError('Failed to fetch plan analytics');
+    }
+  }
+  
+  async getAnalyticsByQRType(limit: number = 10): Promise<Array<{type: string; count: number; scans: number}>> {
+    try {
+      const query = `
+        SELECT 
+          qc.type,
+          COUNT(DISTINCT qc.id) as count,
+          COUNT(se.id) as scans
+        FROM qr_codes qc
+        LEFT JOIN scan_events se ON se.qr_code_id = qc.id::text
+        WHERE qc.is_active = true
+        GROUP BY qc.type
+        ORDER BY scans DESC
+        LIMIT $1
+      `;
+
+      const result = await this.database.query(query, [limit]);
+      return result.rows.map(row => ({
+        type: row.type || 'url',
+        count: parseInt(row.count) || 0,
+        scans: parseInt(row.scans) || 0
+      }));
+    } catch (error) {
+      this.logger.error('Failed to get analytics by QR type', { error });
+      throw new DatabaseError('Failed to fetch QR type analytics');
+    }
+  }
+  
+  async getSystemTimeSeriesData(days: number = 30): Promise<Array<{date: string; scans: number; uniqueScans: number}>> {
+    try {
+      const query = `
+        SELECT 
+          DATE(se.timestamp) as date,
+          COUNT(se.id) as scans,
+          COUNT(DISTINCT se.ip_address) as unique_scans
+        FROM scan_events se
+        WHERE se.timestamp >= CURRENT_DATE - INTERVAL '${days} days'
+        GROUP BY DATE(se.timestamp)
+        ORDER BY date ASC
+      `;
+
+      const result = await this.database.query(query);
+      return result.rows.map(row => ({
+        date: row.date,
+        scans: parseInt(row.scans) || 0,
+        uniqueScans: parseInt(row.unique_scans) || 0
+      }));
+    } catch (error) {
+      this.logger.error('Failed to get system time series data', { error });
+      throw new DatabaseError('Failed to fetch time series data');
+    }
+  }
+  
+  async getSystemDeviceBreakdown(): Promise<{mobile: number; desktop: number; tablet: number}> {
+    try {
+      const query = `
+        SELECT 
+          COALESCE(se.device, 'unknown') as device,
+          COUNT(se.id) as count
+        FROM scan_events se
+        GROUP BY se.device
+      `;
+
+      const result = await this.database.query(query);
+      const deviceCounts = result.rows.reduce((acc, row) => {
+        acc[row.device] = parseInt(row.count) || 0;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const total = Object.values(deviceCounts).reduce((sum: number, count: unknown) => sum + (count as number), 0);
+      
+      if (total === 0) {
+        return { mobile: 0.7, desktop: 0.25, tablet: 0.05 }; // Fallback ratios
+      }
+
+      const mobile = (deviceCounts.mobile || deviceCounts.smartphone || 0) / total;
+      const desktop = (deviceCounts.desktop || deviceCounts.computer || 0) / total;
+      const tablet = (deviceCounts.tablet || 0) / total;
+      
+      return {
+        mobile: Math.round(mobile * 100) / 100,
+        desktop: Math.round(desktop * 100) / 100,
+        tablet: Math.round(tablet * 100) / 100
+      };
+    } catch (error) {
+      this.logger.error('Failed to get system device breakdown', { error });
+      throw new DatabaseError('Failed to fetch device breakdown');
+    }
+  }
+  
+  async getSystemHourlyActivity(): Promise<Array<{hour: number; scans: number}>> {
+    try {
+      const query = `
+        SELECT 
+          EXTRACT(HOUR FROM se.timestamp) as hour,
+          COUNT(se.id) as scans
+        FROM scan_events se
+        WHERE se.timestamp >= CURRENT_DATE - INTERVAL '7 days'
+        GROUP BY EXTRACT(HOUR FROM se.timestamp)
+        ORDER BY hour ASC
+      `;
+
+      const result = await this.database.query(query);
+      
+      // Fill in missing hours with 0 scans
+      const hourlyData = Array.from({length: 24}, (_, i) => ({hour: i, scans: 0}));
+      
+      result.rows.forEach(row => {
+        const hour = parseInt(row.hour);
+        if (hour >= 0 && hour < 24) {
+          hourlyData[hour].scans = parseInt(row.scans) || 0;
+        }
+      });
+
+      return hourlyData;
+    } catch (error) {
+      this.logger.error('Failed to get system hourly activity', { error });
+      throw new DatabaseError('Failed to fetch hourly activity');
     }
   }
 
@@ -948,10 +1484,11 @@ export class AnalyticsRepository implements IAnalyticsRepository {
     return {
       id: row.id,
       qrCodeId: row.qr_code_id,
+      userId: row.user_id,
       name: row.name,
       type: row.goal_type,
       targetUrl: row.target_url,
-      targetValue: row.target_value ? parseFloat(row.target_value) : undefined,
+      targetValue: row.value_amount ? parseFloat(row.value_amount) : undefined,
       isActive: row.is_active,
       createdAt: row.created_at,
       updatedAt: row.updated_at
@@ -974,6 +1511,22 @@ export class AnalyticsRepository implements IAnalyticsRepository {
   }
 
   private camelToSnake(str: string): string {
+    // Special case mappings
+    const specialMappings: { [key: string]: string } = {
+      'targetValue': 'value_amount',
+      'qrCodeId': 'qr_code_id',
+      'userId': 'user_id',
+      'goalType': 'goal_type',
+      'targetUrl': 'target_url',
+      'isActive': 'is_active',
+      'createdAt': 'created_at',
+      'updatedAt': 'updated_at'
+    };
+    
+    if (specialMappings[str]) {
+      return specialMappings[str];
+    }
+    
     return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
   }
 }

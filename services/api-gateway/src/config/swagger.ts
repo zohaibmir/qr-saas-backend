@@ -19,6 +19,7 @@ This API Gateway routes requests to the following microservices:
 - **Analytics Service** (Port 3003) - Scan tracking and analytics
 - **File Service** (Port 3004) - File upload and storage
 - **Notification Service** (Port 3005) - Email/SMS with database persistence
+- **Team Service** (Port 3006) - Team and organization management with member invitations
 - **Landing Page Service** (Port 3010) - Landing pages with forms, A/B testing, and analytics
 
 ## 🗄️ Database Integration
@@ -1094,6 +1095,168 @@ Import the included Postman collection for comprehensive API testing.
           allowGradients: false,
           allowEffects: false
         }
+      },
+      Organization: {
+        type: 'object',
+        required: ['name'],
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Unique organization identifier'
+          },
+          name: {
+            type: 'string',
+            description: 'Organization name',
+            example: 'Acme Corp'
+          },
+          description: {
+            type: 'string',
+            description: 'Organization description',
+            example: 'Leading software company'
+          },
+          ownerId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Organization owner user ID'
+          },
+          settings: {
+            type: 'object',
+            description: 'Organization settings',
+            properties: {
+              allowMemberInvites: {
+                type: 'boolean',
+                description: 'Whether members can invite others'
+              },
+              requireApproval: {
+                type: 'boolean',
+                description: 'Whether invitations require approval'
+              }
+            }
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Creation timestamp'
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Last update timestamp'
+          }
+        }
+      },
+      Member: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Unique member identifier'
+          },
+          userId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'User ID of the member'
+          },
+          organizationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Organization ID'
+          },
+          role: {
+            type: 'string',
+            enum: ['member', 'admin', 'owner'],
+            description: 'Member role in organization'
+          },
+          joinedAt: {
+            type: 'string',
+            format: 'date-time',
+            description: 'When member joined the organization'
+          },
+          user: {
+            type: 'object',
+            description: 'User details',
+            properties: {
+              name: {
+                type: 'string',
+                description: 'User name'
+              },
+              email: {
+                type: 'string',
+                format: 'email',
+                description: 'User email'
+              }
+            }
+          }
+        }
+      },
+      Invitation: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Unique invitation identifier'
+          },
+          organizationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Organization ID'
+          },
+          invitedBy: {
+            type: 'string',
+            format: 'uuid',
+            description: 'User ID who sent the invitation'
+          },
+          email: {
+            type: 'string',
+            format: 'email',
+            description: 'Email of invited user'
+          },
+          role: {
+            type: 'string',
+            enum: ['member', 'admin', 'owner'],
+            description: 'Role to be assigned'
+          },
+          status: {
+            type: 'string',
+            enum: ['pending', 'accepted', 'rejected', 'expired'],
+            description: 'Invitation status'
+          },
+          token: {
+            type: 'string',
+            description: 'Invitation token'
+          },
+          message: {
+            type: 'string',
+            description: 'Optional invitation message'
+          },
+          expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Invitation expiration date'
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Creation timestamp'
+          },
+          organization: {
+            type: 'object',
+            description: 'Organization details',
+            properties: {
+              name: {
+                type: 'string',
+                description: 'Organization name'
+              },
+              description: {
+                type: 'string',
+                description: 'Organization description'
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -1141,6 +1304,10 @@ Import the included Postman collection for comprehensive API testing.
     {
       name: 'Landing Pages',
       description: 'Landing page service for QR code campaigns with templates, forms, A/B testing, and analytics'
+    },
+    {
+      name: 'Teams',
+      description: 'Team and organization management with member invitations and role-based access control'
     }
   ]
 };

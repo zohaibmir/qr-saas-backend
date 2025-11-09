@@ -147,6 +147,39 @@ export class AnalyticsService implements IAnalyticsService {
     }
   }
 
+  async getUserAnalytics(userId?: string, startDate?: Date, endDate?: Date): Promise<ServiceResponse<AnalyticsSummary>> {
+    try {
+      this.logger.info('Getting user analytics', { userId, startDate, endDate });
+      
+      const analyticsData = await this.analyticsRepository.getUserAnalyticsSummary(userId, startDate, endDate);
+
+      return {
+        success: true,
+        data: analyticsData,
+        metadata: {
+          timestamp: new Date().toISOString(),
+          version: '1.0'
+        }
+      };
+    } catch (error) {
+      this.logger.error('Failed to get user analytics', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId,
+        startDate,
+        endDate
+      });
+      
+      return {
+        success: false,
+        error: {
+          code: 'USER_ANALYTICS_FAILED',
+          message: error instanceof Error ? error.message : 'Failed to get user analytics',
+          statusCode: 500
+        }
+      };
+    }
+  }
+
   async exportAnalytics(qrCodeId: string, format: 'json' | 'csv', startDate?: Date, endDate?: Date): Promise<ServiceResponse<string>> {
     try {
       if (!qrCodeId) {
@@ -577,4 +610,5 @@ export class AnalyticsService implements IAnalyticsService {
       throw error;
     }
   }
+
 }
