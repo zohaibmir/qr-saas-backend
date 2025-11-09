@@ -178,6 +178,39 @@ class AnalyticsServiceApplication {
     });
   }
 
+  // Helper method to check if user has super admin privileges
+  private async isSuperAdmin(userId: string): Promise<boolean> {
+    try {
+      const database = this.container.resolve<any>('database');
+      const result = await database.query(
+        'SELECT subscription_tier FROM users WHERE id = $1',
+        [userId]
+      );
+      
+      if (result.rows.length === 0) {
+        this.logger.warn('User not found for super admin check', { userId });
+        return false;
+      }
+      
+      const subscriptionTier = result.rows[0].subscription_tier;
+      const isSuper = subscriptionTier === 'super_admin';
+      
+      this.logger.info('Super admin check completed', { 
+        userId, 
+        subscriptionTier, 
+        isSuper 
+      });
+      
+      return isSuper;
+    } catch (error) {
+      this.logger.error('Error checking super admin status', { 
+        userId, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+      return false;
+    }
+  }
+
   private setupAnalyticsRoutes(analyticsService: IAnalyticsService): void {
     // Track scan event
     this.app.post('/analytics/track', async (req, res) => {
@@ -309,6 +342,33 @@ class AnalyticsServiceApplication {
     // Super Admin Analytics endpoint - aggregated system-wide analytics from database (GET)
     this.app.get('/analytics/super-admin', async (req, res) => {
       try {
+        // Check for user authorization
+        const userId = req.headers['x-user-id'] as string || req.headers['user-id'] as string;
+        
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: {
+              code: 'UNAUTHORIZED',
+              message: 'User ID is required for super admin access',
+              statusCode: 401
+            }
+          });
+        }
+        
+        // Verify user has super admin privileges
+        const hasAccess = await this.isSuperAdmin(userId);
+        if (!hasAccess) {
+          return res.status(403).json({
+            success: false,
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Super admin access denied',
+              statusCode: 403
+            }
+          });
+        }
+        
         // Get repository from container
         const analyticsRepository = this.container.resolve<AnalyticsRepository>('analyticsRepository');
         
@@ -367,6 +427,33 @@ class AnalyticsServiceApplication {
     // Super Admin Analytics endpoint - aggregated system-wide analytics from database (POST)
     this.app.post('/analytics/super-admin', async (req, res) => {
       try {
+        // Check for user authorization
+        const userId = req.headers['x-user-id'] as string || req.headers['user-id'] as string;
+        
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: {
+              code: 'UNAUTHORIZED',
+              message: 'User ID is required for super admin access',
+              statusCode: 401
+            }
+          });
+        }
+        
+        // Verify user has super admin privileges
+        const hasAccess = await this.isSuperAdmin(userId);
+        if (!hasAccess) {
+          return res.status(403).json({
+            success: false,
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Super admin access denied',
+              statusCode: 403
+            }
+          });
+        }
+        
         const { filters } = req.body;
         
         // Get repository from container
