@@ -11,6 +11,90 @@ export class TokenRepository implements ITokenRepository {
     private logger: ILogger
   ) {}
 
+  // Generic methods expected by Auth Service
+  async create(tokenData: { userId: string; token: string; type: string; expiresAt: Date }): Promise<any> {
+    const client: PoolClient = await this.db.connect();
+    
+    try {
+      const query = `
+        INSERT INTO user_tokens (user_id, token, type, expires_at)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (user_id, type) 
+        DO UPDATE SET token = $2, expires_at = $4, created_at = NOW()
+        RETURNING *
+      `;
+      
+      const result = await client.query(query, [tokenData.userId, tokenData.token, tokenData.type, tokenData.expiresAt]);
+      this.logger.debug('Token created', { userId: tokenData.userId, type: tokenData.type });
+      
+      return result.rows[0];
+    } catch (error) {
+      this.logger.error('Failed to create token', { 
+        userId: tokenData.userId,
+        type: tokenData.type,
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+      throw new DatabaseError('Failed to create token', error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      client.release();
+    }
+  }
+
+  async findByToken(token: string): Promise<any> {
+    const client: PoolClient = await this.db.connect();
+    
+    try {
+      const query = `
+        SELECT * FROM user_tokens 
+        WHERE token = $1 AND expires_at > NOW()
+      `;
+      
+      const result = await client.query(query, [token]);
+      
+      if (!result.rows[0]) {
+        return null;
+      }
+
+      return {
+        id: result.rows[0].id,
+        userId: result.rows[0].user_id,
+        token: result.rows[0].token,
+        type: result.rows[0].type,
+        expiresAt: result.rows[0].expires_at,
+        createdAt: result.rows[0].created_at
+      };
+    } catch (error) {
+      this.logger.error('Failed to find token', { 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+      throw new DatabaseError('Failed to find token', error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      client.release();
+    }
+  }
+
+  async delete(tokenId: string): Promise<void> {
+    const client: PoolClient = await this.db.connect();
+    
+    try {
+      const query = `
+        DELETE FROM user_tokens 
+        WHERE id = $1
+      `;
+      
+      await client.query(query, [tokenId]);
+      this.logger.debug('Token deleted', { tokenId });
+    } catch (error) {
+      this.logger.error('Failed to delete token', { 
+        tokenId,
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+      throw new DatabaseError('Failed to delete token', error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      client.release();
+    }
+  }
+
   async saveRefreshToken(userId: string, token: string, expiresAt: Date): Promise<void> {
     const client: PoolClient = await this.db.connect();
     

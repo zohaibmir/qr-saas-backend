@@ -31,11 +31,11 @@ export class UserRepository implements IUserRepository {
       const values = [
         userData.email,
         userData.username,
-        userData.password, // Fixed: use password instead of passwordHash
+        userData.password,
         userData.fullName || null,
-        userData.subscription || 'free', // Fixed: use subscription instead of subscriptionTier
-        false, // isVerified defaults to false for new users
-        null, // avatarUrl defaults to null for new users
+        userData.subscription || 'free',
+        false, // is_verified defaults to false for new users
+        null, // avatar_url defaults to null for new users
         JSON.stringify({}), // preferences defaults to empty object
         JSON.stringify({}) // metadata defaults to empty object
       ];
@@ -117,6 +117,34 @@ export class UserRepository implements IUserRepository {
       
     } catch (error: any) {
       this.logger.error('Failed to find user by email', { 
+        error: error.message,
+        email 
+      });
+      throw new DatabaseError(`Failed to find user: ${error.message}`);
+    } finally {
+      client.release();
+    }
+  }
+
+  async findByEmailWithPassword(email: string): Promise<(User & { password: string }) | null> {
+    const client: PoolClient = await this.db.connect();
+    
+    try {
+      const query = 'SELECT * FROM users WHERE email = $1';
+      const result = await client.query(query, [email]);
+      
+      if (result.rows.length === 0) {
+        return null;
+      }
+      
+      const user = this.mapRowToUser(result.rows[0]);
+      return {
+        ...user,
+        password: result.rows[0].password_hash
+      };
+      
+    } catch (error: any) {
+      this.logger.error('Failed to find user by email with password', { 
         error: error.message,
         email 
       });

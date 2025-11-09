@@ -181,6 +181,7 @@ export interface IUserRepository {
   create(userData: any): Promise<User>;
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
+  findByEmailWithPassword(email: string): Promise<(User & { password: string }) | null>;
   findByUsername(username: string): Promise<User | null>;
   update(id: string, updates: any): Promise<User>;
   delete(id: string): Promise<void>;
@@ -190,6 +191,12 @@ export interface IUserRepository {
 }
 
 export interface ITokenRepository {
+  // Generic CRUD methods for Auth Service
+  create(tokenData: { userId: string; token: string; type: string; expiresAt: Date }): Promise<any>;
+  findByToken(token: string): Promise<any>;
+  delete(tokenId: string): Promise<void>;
+  
+  // Specific methods for legacy compatibility
   saveRefreshToken(userId: string, token: string, expiresAt: Date): Promise<void>;
   validateRefreshToken(token: string): Promise<{ userId: string; isValid: boolean }>;
   revokeRefreshToken(token: string): Promise<void>;

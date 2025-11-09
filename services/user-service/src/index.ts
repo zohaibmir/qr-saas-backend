@@ -13,6 +13,7 @@ import {
   ISubscriptionService,
   IHealthChecker,
   IDependencyContainer,
+  IAuthService,
   AppError
 } from './interfaces';
 import { Logger } from './services/logger.service';
@@ -73,6 +74,11 @@ class UserServiceApplication {
       const { SubscriptionService } = require('./services/subscription.service');
       const subscriptionService = new SubscriptionService(subscriptionRepository, userRepository, this.logger);
       this.container.register('subscriptionService', subscriptionService);
+      
+      // Register auth service
+      const { AuthService } = require('./services/auth.service');
+      const authService = new AuthService(userRepository, tokenRepository, passwordHasher, tokenGenerator, this.logger);
+      this.container.register('authService', authService);
       
       // Register user service with subscription service dependency
       const userService = new UserService(userRepository, passwordHasher, this.logger, subscriptionService);
@@ -172,6 +178,9 @@ class UserServiceApplication {
       }
     });
 
+    // Add Auth routes
+    this.setupAuthRoutes();
+
     // User routes
     this.setupUserRoutes(userService);
 
@@ -196,6 +205,165 @@ class UserServiceApplication {
         }
       });
     });
+  }
+
+  private setupAuthRoutes(): void {
+    const authService = this.container.resolve<IAuthService>('authService');
+    
+    // Login route
+    this.app.post('/auth/login', async (req, res) => {
+      try {
+        const { email, password } = req.body;
+        
+        if (!email || !password) {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'MISSING_CREDENTIALS',
+              message: 'Email and password are required',
+              statusCode: 400
+            }
+          });
+        }
+
+        const result = await authService.login({ email, password });
+        
+        if (result.success) {
+          res.status(200).json(result);
+        } else {
+          res.status(result.error?.statusCode || 401).json(result);
+        }
+      } catch (error) {
+        this.logger.error('Login route error', { error });
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'LOGIN_FAILED',
+            message: 'Authentication failed',
+            statusCode: 500
+          }
+        });
+      }
+    });
+
+    // Register route
+    this.app.post('/auth/register', async (req, res) => {
+      try {
+        const { email, username, password, fullName } = req.body;
+        
+        if (!email || !password) {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'MISSING_FIELDS',
+              message: 'Email and password are required',
+              statusCode: 400
+            }
+          });
+        }
+
+        // Auto-generate username if not provided
+        const generatedUsername = username || this.generateUsernameFromEmail(email);
+
+        const result = await authService.register({
+          email,
+          username: generatedUsername,
+          password,
+          fullName,
+          subscription: 'free' // Default subscription
+        });
+        
+        if (result.success) {
+          res.status(201).json(result);
+        } else {
+          res.status(result.error?.statusCode || 400).json(result);
+        }
+      } catch (error) {
+        this.logger.error('Register route error', { error });
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'REGISTRATION_FAILED',
+            message: 'Registration failed',
+            statusCode: 500
+          }
+        });
+      }
+    });
+
+    // Refresh token route
+    this.app.post('/auth/refresh', async (req, res) => {
+      try {
+        const { refreshToken } = req.body;
+        
+        if (!refreshToken) {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'MISSING_REFRESH_TOKEN',
+              message: 'Refresh token is required',
+              statusCode: 400
+            }
+          });
+        }
+
+        const result = await authService.refreshToken(refreshToken);
+        
+        if (result.success) {
+          res.status(200).json(result);
+        } else {
+          res.status(result.error?.statusCode || 401).json(result);
+        }
+      } catch (error) {
+        this.logger.error('Refresh token route error', { error });
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'TOKEN_REFRESH_FAILED',
+            message: 'Token refresh failed',
+            statusCode: 500
+          }
+        });
+      }
+    });
+
+    // Logout route
+    this.app.post('/auth/logout', async (req, res) => {
+      try {
+        const { userId, refreshToken } = req.body;
+        
+        if (!userId || !refreshToken) {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'MISSING_FIELDS',
+              message: 'User ID and refresh token are required',
+              statusCode: 400
+            }
+          });
+        }
+
+        const result = await authService.logout(userId, refreshToken);
+        
+        if (result.success) {
+          res.status(200).json(result);
+        } else {
+          res.status(result.error?.statusCode || 400).json(result);
+        }
+      } catch (error) {
+        this.logger.error('Logout route error', { error });
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'LOGOUT_FAILED',
+            message: 'Logout failed',
+            statusCode: 500
+          }
+        });
+      }
+    });
+
+    this.logger.info('Authentication routes setup complete');
   }
 
   private setupUserRoutes(userService: IUserService): void {
@@ -507,27 +675,35 @@ class UserServiceApplication {
       // Test database connection
       const dbHealthy = await DatabaseConfig.testConnection();
       if (!dbHealthy) {
-        throw new Error('Database connection failed');
-      }
-
-      this.app.listen(PORT, '0.0.0.0', () => {
-        this.logger.info('🚀 User Service started successfully', {
-          port: PORT,
-          environment: process.env.NODE_ENV || 'development',
-          architecture: 'Clean Architecture with SOLID Principles',
-          dependencies: this.container.getRegisteredTokens()
-        });
-      });
-
-    } catch (error) {
-      this.logger.error('Failed to start User Service', { 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      });
-      process.exit(1);
+      throw new Error('Database connection failed');
     }
-  }
 
-  public async shutdown(): Promise<void> {
+    this.app.listen(PORT, '0.0.0.0', () => {
+      this.logger.info('🚀 User Service started successfully', {
+        port: PORT,
+        environment: process.env.NODE_ENV || 'development',
+        architecture: 'Clean Architecture with SOLID Principles',
+        dependencies: this.container.getRegisteredTokens()
+      });
+    });
+
+  } catch (error) {
+    this.logger.error('Failed to start User Service', { 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+    process.exit(1);
+  }
+}
+
+private generateUsernameFromEmail(email: string): string {
+  // Extract the local part of the email (before @)
+  const localPart = email.split('@')[0];
+  // Remove any non-alphanumeric characters and convert to lowercase
+  const cleanUsername = localPart.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  // Add a random suffix to ensure uniqueness
+  const randomSuffix = Math.random().toString(36).substr(2, 4);
+  return `${cleanUsername}${randomSuffix}`;
+}  public async shutdown(): Promise<void> {
     this.logger.info('Shutting down User Service gracefully...');
     
     try {
