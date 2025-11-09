@@ -77,6 +77,9 @@ class ApiGatewayApplication {
     this.app.get('/health', (req, res) => this.healthController.getHealth(req, res));
     this.app.get('/health/:serviceName', (req, res) => this.healthController.getServiceHealth(req, res));
 
+    // Static file serving for QR code images
+    this.setupStaticFileServing();
+
     // Simple, working proxy routes (keeping what works while applying clean architecture principles)
     this.setupProxyRoutes();
 
@@ -142,6 +145,28 @@ class ApiGatewayApplication {
     this.logger.info('Swagger documentation configured', { 
       endpoint: '/api-docs',
       json: '/api-docs.json' 
+    });
+  }
+
+  private setupStaticFileServing(): void {
+    const path = require('path');
+    
+    // Serve QR code images from the QR service uploads directory
+    const qrImagesPath = path.resolve(__dirname, '../../qr-service/uploads/qr-images');
+    
+    // Add CORS headers for static files before serving them
+    this.app.use('/uploads/qr-images', (req, res, next) => {
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+      next();
+    });
+    
+    this.app.use('/uploads/qr-images', express.static(qrImagesPath));
+    
+    this.logger.info('Static file serving configured with CORS', { 
+      route: '/uploads/qr-images',
+      directory: qrImagesPath 
     });
   }
 

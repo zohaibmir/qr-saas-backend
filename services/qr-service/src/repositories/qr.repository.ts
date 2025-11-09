@@ -176,7 +176,9 @@ export class QRRepository implements IQRRepository {
             design_config = COALESCE($4, design_config), 
             expires_at = COALESCE($5, expires_at),
             max_scans = COALESCE($6, max_scans), 
-            is_active = COALESCE($7, is_active), 
+            is_active = COALESCE($7, is_active),
+            image_url = COALESCE($8, image_url),
+            image_file_id = COALESCE($9, image_file_id),
             updated_at = NOW()
         WHERE id = $1
         RETURNING *
@@ -189,7 +191,9 @@ export class QRRepository implements IQRRepository {
         qrData.customization ? JSON.stringify(qrData.customization) : null,
         qrData.validityConfig?.expiresAt || null,
         qrData.validityConfig?.maxScans || null,
-        qrData.isActive !== undefined ? qrData.isActive : null
+        qrData.isActive !== undefined ? qrData.isActive : null,
+        qrData.image_url || null,
+        qrData.image_file_id || null
       ];
 
       this.logger.debug('Updating QR code', { qrId: id });
@@ -288,6 +292,8 @@ export class QRRepository implements IQRRepository {
       current_scans: row.current_scans || 0,
       password_hash: row.password_hash,
       valid_schedule: row.valid_schedule ? JSON.parse(row.valid_schedule) : undefined,
+      image_url: row.image_url || undefined,
+      image_file_id: row.image_file_id || undefined,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at)
     };

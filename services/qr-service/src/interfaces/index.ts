@@ -64,6 +64,8 @@ export interface QRCode {
   current_scans: number;
   password_hash?: string;
   valid_schedule?: ScheduleConfig;
+  image_url?: string; // URL to the saved QR image
+  image_file_id?: string; // Reference to file_uploads table
   createdAt: Date;
   updatedAt: Date;
 }

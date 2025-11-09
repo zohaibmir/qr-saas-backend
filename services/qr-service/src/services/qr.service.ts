@@ -18,10 +18,12 @@ import {
 } from '../interfaces';
 import { QRValidityService } from './qr-validity.service';
 import { Logger } from './logger.service';
+import { FileStorageService, IFileStorageService } from './file-storage.service';
 import * as bcrypt from 'bcrypt';
 
 export class QRService implements IQRService {
   private validityService: QRValidityService;
+  private fileStorageService: IFileStorageService;
 
   constructor(
     private qrRepository: IQRRepository,
@@ -30,6 +32,7 @@ export class QRService implements IQRService {
     private logger: ILogger
   ) {
     this.validityService = new QRValidityService(logger);
+    this.fileStorageService = new FileStorageService(logger);
   }
 
   async createQR(userId: string, qrData: CreateQRRequest, subscriptionTier?: string): Promise<ServiceResponse<QRCode>> {
@@ -65,6 +68,7 @@ export class QRService implements IQRService {
 
       const shortId = await this.generateUniqueShortId();
       
+      // Create the QR code record first
       const qrCode = await this.qrRepository.create({
         ...qrData,
         userId,
@@ -73,19 +77,75 @@ export class QRService implements IQRService {
         currentScans: 0
       });
 
-      this.logger.info('QR code created successfully', { 
-        qrId: qrCode.id,
-        userId,
-        shortId: qrCode.shortId 
-      });
+      // Generate and save the QR image
+      try {
+        this.logger.info('Starting QR image generation', { qrId: qrCode.id });
+        
+        const qrDataString = this.generateQRDataString(qrCode);
+        this.logger.info('Generated QR data string', { qrId: qrCode.id, dataLength: qrDataString.length });
+        
+        // Map QRDesignConfig to QRGenerationOptions
+        const generationOptions = qrCode.designConfig ? {
+          errorCorrectionLevel: qrCode.designConfig.errorCorrectionLevel,
+          margin: qrCode.designConfig.margin,
+          width: qrCode.designConfig.size || 512,
+          color: qrCode.designConfig.color ? {
+            dark: qrCode.designConfig.color.foreground,
+            light: qrCode.designConfig.color.background
+          } : undefined
+        } : { width: 512 }; // Default size
 
-      return {
-        success: true,
-        data: qrCode,
-        metadata: {
-          timestamp: new Date().toISOString()
-        }
-      };
+        this.logger.info('Starting QR buffer generation', { qrId: qrCode.id, options: generationOptions });
+        const imageBuffer = await this.qrGenerator.generate(
+          qrDataString,
+          generationOptions,
+          'png'
+        );
+        this.logger.info('QR buffer generated', { qrId: qrCode.id, bufferSize: imageBuffer.length });
+
+        // Save the image to file system
+        this.logger.info('Starting image save to filesystem', { qrId: qrCode.id });
+        const imageUrl = await this.fileStorageService.saveQRImage(qrCode.id, imageBuffer, 'png');
+        this.logger.info('Image saved to filesystem', { qrId: qrCode.id, imageUrl });
+        
+        // Update the QR code record with the image URL
+        this.logger.info('Updating QR record with image URL', { qrId: qrCode.id, imageUrl });
+        const updatedQrCode = await this.qrRepository.update(qrCode.id, { 
+          image_url: imageUrl 
+        });
+        this.logger.info('QR record updated', { qrId: updatedQrCode.id, hasImageUrl: !!updatedQrCode.image_url });
+
+        this.logger.info('QR code created successfully with image', { 
+          qrId: updatedQrCode.id,
+          userId,
+          shortId: updatedQrCode.shortId,
+          imageUrl 
+        });
+
+        return {
+          success: true,
+          data: updatedQrCode,
+          metadata: {
+            timestamp: new Date().toISOString()
+          }
+        };
+      } catch (imageError) {
+        this.logger.error('Failed to generate QR image during creation', {
+          qrId: qrCode.id,
+          error: imageError instanceof Error ? imageError.message : 'Unknown error',
+          stack: imageError instanceof Error ? imageError.stack : undefined
+        });
+
+        // QR code was created but image failed - return the QR code anyway
+        // The image can be generated later on-demand
+        return {
+          success: true,
+          data: qrCode,
+          metadata: {
+            timestamp: new Date().toISOString()
+          }
+        };
+      }
     } catch (error) {
       this.logger.error('Failed to create QR code', { 
         userId,
@@ -193,6 +253,32 @@ export class QRService implements IQRService {
         throw new NotFoundError('QR Code');
       }
 
+      // First, try to serve from saved image if it exists
+      if (qrCode.image_url && format === 'png') {
+        try {
+          const imageExists = await this.fileStorageService.imageExists(qrCodeId, 'png');
+          if (imageExists) {
+            const fs = await import('fs/promises');
+            const fullPath = this.fileStorageService.getFullPath(qrCodeId, 'png');
+            const imageBuffer = await fs.readFile(fullPath);
+            
+            this.logger.info('Served QR image from saved file', { qrCodeId, format });
+            return {
+              success: true,
+              data: imageBuffer
+            };
+          }
+        } catch (fileError) {
+          this.logger.warn('Failed to read saved QR image, falling back to generation', {
+            qrCodeId,
+            error: fileError instanceof Error ? fileError.message : 'Unknown error'
+          });
+        }
+      }
+
+      // Fallback to dynamic generation
+      this.logger.info('Generating QR image dynamically', { qrCodeId, format });
+      
       // Map QRDesignConfig to QRGenerationOptions
       const generationOptions = qrCode.designConfig ? {
         errorCorrectionLevel: qrCode.designConfig.errorCorrectionLevel,
@@ -211,6 +297,20 @@ export class QRService implements IQRService {
         generationOptions,
         format
       );
+
+      // If this is a PNG and we don't have a saved version, save it for next time
+      if (format === 'png' && !qrCode.image_url) {
+        try {
+          const imageUrl = await this.fileStorageService.saveQRImage(qrCodeId, imageBuffer, 'png');
+          await this.qrRepository.update(qrCodeId, { image_url: imageUrl });
+          this.logger.info('Saved dynamically generated QR image', { qrCodeId, imageUrl });
+        } catch (saveError) {
+          this.logger.warn('Failed to save dynamically generated QR image', {
+            qrCodeId,
+            error: saveError instanceof Error ? saveError.message : 'Unknown error'
+          });
+        }
+      }
 
       return {
         success: true,
@@ -288,7 +388,22 @@ export class QRService implements IQRService {
 
       this.logger.info('Deleting QR code', { qrId: id });
 
+      // Delete the QR code from database
       const deleted = await this.qrRepository.delete(id);
+
+      // Clean up the image file if it exists
+      if (existingQR.image_url) {
+        try {
+          await this.fileStorageService.deleteQRImage(existingQR.image_url);
+        } catch (fileError) {
+          this.logger.warn('Failed to delete QR image file during QR deletion', {
+            qrId: id,
+            imageUrl: existingQR.image_url,
+            error: fileError instanceof Error ? fileError.message : 'Unknown error'
+          });
+          // Don't fail the deletion if file cleanup fails
+        }
+      }
 
       return {
         success: true,

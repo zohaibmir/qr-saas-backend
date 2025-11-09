@@ -82,7 +82,7 @@ class LandingPageServiceApplication {
     // Rate limiting
     const limiter = rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 200, // Higher limit for landing page service due to form submissions
+      max: 1200, // Higher limit for landing page service due to form submissions
       message: {
         success: false,
         error: {
