@@ -8,14 +8,14 @@ export function createOrganizationRoutes(organizationController: OrganizationCon
   // All routes require authentication
   router.use(authMiddleware);
 
+  // User's organizations - MUST come before /:organizationId route
+  router.get('/', organizationController.getUserOrganizations.bind(organizationController));
+  
   // Organization CRUD routes
   router.post('/', organizationController.createOrganization.bind(organizationController));
   router.get('/:organizationId', organizationController.getOrganization.bind(organizationController));
   router.put('/:organizationId', organizationController.updateOrganization.bind(organizationController));
   router.delete('/:organizationId', organizationController.deleteOrganization.bind(organizationController));
-  
-  // User's organizations
-  router.get('/', organizationController.getUserOrganizations.bind(organizationController));
 
   return router;
 }

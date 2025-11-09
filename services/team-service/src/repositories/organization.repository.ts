@@ -308,7 +308,7 @@ export class OrganizationRepository implements IOrganizationRepository {
          WHERE om.organization_id = $1 AND om.status = 'active') as qr_code_count,
         (SELECT COUNT(*) FROM qr_codes qr 
          INNER JOIN organization_members om ON qr.user_id = om.user_id 
-         WHERE om.organization_id = $1 AND om.status = 'active' AND qr.is_shared_with_team = true) as shared_qr_code_count
+         WHERE om.organization_id = $1 AND om.status = 'active' AND qr.shared_with_team = true) as shared_qr_code_count
     `;
 
     try {

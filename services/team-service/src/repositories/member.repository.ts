@@ -166,7 +166,7 @@ export class MemberRepository implements IMemberRepository {
           'id', u.id,
           'email', u.email,
           'fullName', u.full_name,
-          'avatar', u.avatar
+          'avatarUrl', u.avatar_url
         ) as user
       FROM organization_members om
       INNER JOIN users u ON om.user_id = u.id
