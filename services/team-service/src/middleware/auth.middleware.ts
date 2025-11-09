@@ -12,6 +12,21 @@ interface AuthenticatedRequest extends Request {
 // Simple auth middleware following API Gateway pattern
 export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
   try {
+    // First check for x-user-id header (from API Gateway)
+    const userIdHeader = req.header('x-user-id') || req.header('user-id');
+    
+    if (userIdHeader) {
+      // Use user ID from header (API Gateway pattern)
+      req.user = {
+        id: userIdHeader,
+        email: `user-${userIdHeader}@example.com`, // Placeholder email
+        subscriptionTier: 'free' // Default tier
+      };
+      next();
+      return;
+    }
+    
+    // Fallback to JWT token authentication
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
     if (!token) {
@@ -19,7 +34,7 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
         success: false,
         error: {
           code: 'UNAUTHORIZED',
-          message: 'Access token required'
+          message: 'Access token or user ID required'
         }
       });
       return;

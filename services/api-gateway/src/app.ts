@@ -273,32 +273,12 @@ class ApiGatewayApplication {
       await this.proxyRequest(req, res, 'landing-page-service', '/api/landing-templates', '/templates');
     });
 
-    // Teams routes - handle with specific path logic
-    this.app.all('/api/teams/health', async (req, res) => {
-      await this.proxyRequest(req, res, 'team-service', '/api/teams/health', '/health');
-    });
-
-    this.app.all('/api/teams/organizations', async (req, res) => {
-      await this.proxyRequest(req, res, 'team-service', '/api/teams/organizations', '/api/v1/organizations');
-    });
-    
-    this.app.all('/api/teams/organizations/*', async (req, res) => {
+    // Teams routes - handle both base route and sub-routes (following QR/Analytics pattern)
+    this.app.all('/api/teams', async (req, res) => {
       await this.proxyRequest(req, res, 'team-service', '/api/teams', '/api/v1');
     });
-
-    this.app.all('/api/teams/members', async (req, res) => {
-      await this.proxyRequest(req, res, 'team-service', '/api/teams/members', '/api/v1/members');
-    });
     
-    this.app.all('/api/teams/members/*', async (req, res) => {
-      await this.proxyRequest(req, res, 'team-service', '/api/teams', '/api/v1');
-    });
-
-    this.app.all('/api/teams/invitations', async (req, res) => {
-      await this.proxyRequest(req, res, 'team-service', '/api/teams/invitations', '/api/v1/invitations');
-    });
-    
-    this.app.all('/api/teams/invitations/*', async (req, res) => {
+    this.app.all('/api/teams/*', async (req, res) => {
       await this.proxyRequest(req, res, 'team-service', '/api/teams', '/api/v1');
     });
 
