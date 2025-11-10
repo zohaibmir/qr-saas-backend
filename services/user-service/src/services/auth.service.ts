@@ -461,10 +461,12 @@ export class AuthService implements IAuthService {
     const accessToken = this.tokenGenerator.generateAccessToken(user);
     const refreshToken = this.tokenGenerator.generateRefreshToken();
     const expiresIn = 15 * 60; // 15 minutes in seconds
+    const refreshTokenExpiresAt = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 days
 
     return {
       accessToken,
       refreshToken,
+      refreshTokenExpiresAt,
       expiresIn
     };
   }

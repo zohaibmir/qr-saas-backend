@@ -1,9 +1,11 @@
 export interface User {
   id: string;
   email: string;
+  password?: string; // Optional for responses, required for creation
   name: string;
   subscriptionTier: 'free' | 'pro' | 'business' | 'enterprise';
   isEmailVerified: boolean;
+  isActive: boolean; // Added for auth service
   createdAt: Date;
   updatedAt: Date;
 }

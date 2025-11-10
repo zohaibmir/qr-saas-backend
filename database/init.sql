@@ -749,3 +749,99 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Database initialization complete
+
+-- ===============================================
+-- PAYMENT INTEGRATION TABLES
+-- ===============================================
+
+-- Payment Methods table
+CREATE TABLE payment_methods (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider VARCHAR(20) NOT NULL CHECK (provider IN ('stripe', 'klarna', 'swish', 'paypal')),
+    type VARCHAR(50) NOT NULL,
+    card_data JSONB,
+    klarna_data JSONB,
+    swish_data JSONB,
+    paypal_data JSONB,
+    is_default BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Payment Transactions table
+CREATE TABLE payment_transactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    subscription_id UUID REFERENCES user_subscriptions(id) ON DELETE SET NULL,
+    provider VARCHAR(20) NOT NULL CHECK (provider IN ('stripe', 'klarna', 'swish', 'paypal')),
+    provider_transaction_id VARCHAR(255) NOT NULL,
+    type VARCHAR(20) NOT NULL CHECK (type IN ('subscription', 'one_time', 'upgrade', 'refund')),
+    status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'processing', 'succeeded', 'failed', 'canceled', 'requires_action')),
+    amount DECIMAL(10,2) NOT NULL,
+    currency VARCHAR(3) NOT NULL DEFAULT 'USD',
+    description TEXT,
+    payment_method_id UUID REFERENCES payment_methods(id) ON DELETE SET NULL,
+    metadata JSONB DEFAULT '{}',
+    failure_reason TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Indexes for payment tables
+CREATE INDEX idx_payment_methods_user_id ON payment_methods(user_id);
+CREATE INDEX idx_payment_methods_provider ON payment_methods(provider);
+CREATE INDEX idx_payment_methods_is_default ON payment_methods(is_default);
+CREATE UNIQUE INDEX idx_payment_methods_user_provider_default ON payment_methods(user_id, provider) WHERE is_default = true;
+
+CREATE INDEX idx_payment_transactions_user_id ON payment_transactions(user_id);
+CREATE INDEX idx_payment_transactions_subscription_id ON payment_transactions(subscription_id);
+CREATE INDEX idx_payment_transactions_provider ON payment_transactions(provider);
+CREATE INDEX idx_payment_transactions_type ON payment_transactions(type);
+CREATE INDEX idx_payment_transactions_status ON payment_transactions(status);
+CREATE INDEX idx_payment_transactions_provider_transaction_id ON payment_transactions(provider_transaction_id);
+CREATE INDEX idx_payment_transactions_created_at ON payment_transactions(created_at DESC);
+
+-- Ensure only one default payment method per user per provider
+CREATE OR REPLACE FUNCTION check_default_payment_method() 
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.is_default = true THEN
+        UPDATE payment_methods 
+        SET is_default = false 
+        WHERE user_id = NEW.user_id 
+          AND provider = NEW.provider 
+          AND id != NEW.id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_check_default_payment_method
+    BEFORE INSERT OR UPDATE ON payment_methods
+    FOR EACH ROW
+    EXECUTE FUNCTION check_default_payment_method();
+
+-- Payment configuration settings
+CREATE TABLE payment_provider_config (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    provider VARCHAR(20) NOT NULL CHECK (provider IN ('stripe', 'klarna', 'swish', 'paypal')),
+    environment VARCHAR(20) NOT NULL CHECK (environment IN ('test', 'production')),
+    is_enabled BOOLEAN DEFAULT true,
+    config_data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(provider, environment)
+);
+
+-- Insert default payment provider configurations for Swedish market
+INSERT INTO payment_provider_config (provider, environment, is_enabled, config_data) VALUES 
+('stripe', 'test', true, '{"supported_currencies": ["USD", "EUR", "SEK"], "supported_countries": ["SE", "US", "GB"]}'),
+('stripe', 'production', false, '{"supported_currencies": ["USD", "EUR", "SEK"], "supported_countries": ["SE", "US", "GB"]}'),
+('klarna', 'test', true, '{"supported_currencies": ["SEK", "EUR", "USD"], "supported_countries": ["SE", "NO", "DK", "FI"]}'),
+('klarna', 'production', false, '{"supported_currencies": ["SEK", "EUR", "USD"], "supported_countries": ["SE", "NO", "DK", "FI"]}'),
+('swish', 'test', true, '{"supported_currencies": ["SEK"], "supported_countries": ["SE"], "max_amount": 150000}'),
+('swish', 'production', false, '{"supported_currencies": ["SEK"], "supported_countries": ["SE"], "max_amount": 150000}'),
+('paypal', 'test', true, '{"supported_currencies": ["USD", "EUR", "SEK"], "supported_countries": ["SE", "US", "GB", "DE", "FR"]}'),
+('paypal', 'production', false, '{"supported_currencies": ["USD", "EUR", "SEK"], "supported_countries": ["SE", "US", "GB", "DE", "FR"]}');
+

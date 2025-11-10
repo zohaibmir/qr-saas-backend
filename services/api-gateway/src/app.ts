@@ -128,13 +128,14 @@ class ApiGatewayApplication {
           postman: 'Import postman-collection.json for comprehensive testing'
         },
         services: {
-          'user-service': 'User management and authentication',
+          'user-service': 'User management and authentication with payment processing',
           'qr-service': 'QR code generation and management',
           'analytics-service': 'Scan tracking and analytics',
           'file-service': 'File upload and storage',
           'notification-service': 'Email/SMS with database persistence',
           'team-service': 'Team and organization management with member invitations',
-          'landing-page-service': 'Landing page builder with A/B testing and forms'
+          'landing-page-service': 'Landing page builder with A/B testing and forms',
+          'payment-processing': 'Multi-provider payments: Swish (Swedish), Stripe, Klarna, PayPal'
         },
         database: 'PostgreSQL with complete persistence',
         architecture: 'Clean Architecture with SOLID principles',
@@ -280,6 +281,15 @@ class ApiGatewayApplication {
     
     this.app.all('/api/teams/*', async (req, res) => {
       await this.proxyRequest(req, res, 'team-service', '/api/teams', '/api/v1');
+    });
+
+    // Payment routes - handle all payment-related operations including Swish
+    this.app.all('/api/payments', async (req, res) => {
+      await this.proxyRequest(req, res, 'user-service', '/api/payments', '/api/v1/payments');
+    });
+    
+    this.app.all('/api/payments/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'user-service', '/api/payments', '/api/v1/payments');
     });
 
     // Public landing page access (special route)

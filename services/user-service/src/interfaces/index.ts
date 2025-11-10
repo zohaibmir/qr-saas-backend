@@ -30,9 +30,11 @@ export interface User {
   id: string;
   email: string;
   username: string;
+  password?: string; // Optional for responses, required for creation
   fullName?: string;
   subscription: 'free' | 'pro' | 'business' | 'enterprise';
   isEmailVerified: boolean;
+  isActive: boolean; // Added for auth service
   avatar?: string;
   preferences?: UserPreferences;
   metadata?: any;
@@ -77,6 +79,7 @@ export interface UpdateUserRequest {
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
+  refreshTokenExpiresAt: number; // Added for auth service
   expiresIn: number;
 }
 
@@ -241,6 +244,7 @@ export interface ITokenGenerator {
   generateRefreshToken(): string;
   generateEmailVerificationToken(): string;
   generatePasswordResetToken(): string;
+  generateResetToken(): string; // Alias for compatibility
   verifyAccessToken(token: string): { userId: string; isValid: boolean };
 }
 
@@ -279,6 +283,9 @@ export class DatabaseError extends AppError {
     super(message, 500, 'DATABASE_ERROR', true);
   }
 }
+
+//Payment Integration Exports
+export * from './payment.interface';
 
 // Type guards
 export const isUser = (obj: any): obj is User => {

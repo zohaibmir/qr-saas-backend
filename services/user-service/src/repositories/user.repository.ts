@@ -388,6 +388,7 @@ export class UserRepository implements IUserRepository {
       fullName: row.full_name,
       subscription: row.subscription_tier,
       isEmailVerified: row.is_verified,
+      isActive: row.is_active ?? true, // Default to true if not set
       avatar: row.avatar_url,
       preferences: typeof row.preferences === 'string' ? JSON.parse(row.preferences) : row.preferences,
       metadata: typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata,

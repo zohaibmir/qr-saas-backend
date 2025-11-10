@@ -39,6 +39,10 @@ export class TokenGenerator implements ITokenGenerator {
     return crypto.randomBytes(32).toString('hex');
   }
 
+  generateResetToken(): string {
+    return this.generatePasswordResetToken(); // Alias method for consistency
+  }
+
   verifyAccessToken(token: string): { userId: string; isValid: boolean } {
     try {
       const decoded = jwt.verify(token, this.accessTokenSecret) as any;

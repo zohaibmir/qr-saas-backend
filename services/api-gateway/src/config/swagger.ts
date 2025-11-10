@@ -1,6 +1,7 @@
 import swaggerJsdoc from 'swagger-jsdoc';
 import { SwaggerDefinition } from 'swagger-jsdoc';
 import { bulkQRSchemas } from '../docs/bulk-qr-routes';
+import { paymentSchemas } from '../docs/payment-routes';
 
 const swaggerDefinition: SwaggerDefinition = {
   openapi: '3.0.0',
@@ -637,6 +638,7 @@ Import the included Postman collection for comprehensive API testing.
         }
       },
       ...bulkQRSchemas,
+      ...paymentSchemas,
       LandingPage: {
         type: 'object',
         required: ['name', 'title', 'templateId'],
@@ -1308,6 +1310,10 @@ Import the included Postman collection for comprehensive API testing.
     {
       name: 'Teams',
       description: 'Team and organization management with member invitations and role-based access control'
+    },
+    {
+      name: 'Payments',
+      description: 'Payment processing with multiple providers including Swish for Swedish market (60%+ coverage), Stripe, Klarna, and PayPal'
     }
   ]
 };
@@ -1319,7 +1325,7 @@ const options = {
     './src/middleware/*.ts',
     './src/docs/*.ts',
     './src/docs/subscription-routes.ts',
-    './src/docs/landing-page-routes.ts',
+    './src/docs/payment-routes.ts',
     './src/index.ts',
     './src/app.ts'
   ]
