@@ -15,13 +15,27 @@ Complete microservices-based QR code generation and analytics platform.
 
 ## 🏗️ Architecture
 This API Gateway routes requests to the following microservices:
-- **User Service** (Port 3001) - User management and authentication
+- **User Service** (Port 3001) - User management, authentication, and payment processing
 - **QR Service** (Port 3002) - QR code generation and management  
 - **Analytics Service** (Port 3003) - Scan tracking and analytics
 - **File Service** (Port 3004) - File upload and storage
 - **Notification Service** (Port 3005) - Email/SMS with database persistence
 - **Team Service** (Port 3006) - Team and organization management with member invitations
 - **Landing Page Service** (Port 3010) - Landing pages with forms, A/B testing, and analytics
+
+## 🇸🇪 Swedish Market Payment Integration
+- **Swish Integration**: Complete payment processing with 60%+ market coverage
+- **Multi-Provider Support**: Stripe, Klarna, PayPal framework ready
+- **Real Payment Processing**: Actual API integration, not just QR generation
+- **Webhook Handling**: Secure callback processing for all providers
+- **Database Persistence**: Complete audit trail and transaction management
+
+## 💳 Payment Processing Features
+- **Swish**: Mobile payments dominating Swedish market (60% coverage)
+- **Stripe**: International credit/debit card processing
+- **Klarna**: Buy now, pay later solutions
+- **PayPal**: Global digital wallet payments
+- **Audit Trail**: Complete transaction logging and compliance
 
 ## 🗄️ Database Integration
 - **PostgreSQL**: Complete persistence across all services
@@ -1324,8 +1338,12 @@ const options = {
     './src/routes/*.ts',
     './src/middleware/*.ts',
     './src/docs/*.ts',
+    './src/docs/auth-routes.ts',
     './src/docs/subscription-routes.ts',
     './src/docs/payment-routes.ts',
+    './src/docs/team-routes.ts',
+    './src/docs/analytics-files-routes.ts',
+    './src/docs/landing-page-routes.ts',
     './src/index.ts',
     './src/app.ts'
   ]
