@@ -1,9 +1,11 @@
 export interface User {
     id: string;
     email: string;
+    password?: string;
     name: string;
     subscriptionTier: 'free' | 'pro' | 'business' | 'enterprise';
     isEmailVerified: boolean;
+    isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
 }

@@ -65,6 +65,12 @@ export class ServiceRegistry implements IServiceRegistry {
         url: process.env.ECOMMERCE_SERVICE_URL || 'http://localhost:3011',
         healthPath: '/health',
         timeout: 5000
+      },
+      {
+        name: 'content-service',
+        url: process.env.CONTENT_SERVICE_URL || 'http://localhost:3012',
+        healthPath: '/health',
+        timeout: 5000
       }
     ];
 

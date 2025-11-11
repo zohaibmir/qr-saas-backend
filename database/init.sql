@@ -3290,6 +3290,364 @@ CREATE TRIGGER update_retargeting_pixels_updated_at BEFORE UPDATE ON retargeting
 CREATE TRIGGER update_campaign_analytics_updated_at BEFORE UPDATE ON campaign_analytics FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ===============================================
+-- CONTENT MANAGEMENT SYSTEM TABLES
+-- Features: Blog Posts, Testimonials, Static Pages
+-- Rich Content Editor, Categories, Tags, SEO
+-- ===============================================
+
+-- Content Categories Table
+CREATE TABLE IF NOT EXISTS content_categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    parent_id INTEGER REFERENCES content_categories(id) ON DELETE SET NULL,
+    sort_order INTEGER DEFAULT 0,
+    color VARCHAR(7), -- Hex color code
+    icon VARCHAR(100), -- Icon name or URL
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Content Tags Table
+CREATE TABLE IF NOT EXISTS content_tags (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    color VARCHAR(7), -- Hex color code
+    usage_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Content Posts Table (Blog Posts, Testimonials, Static Pages)
+CREATE TABLE IF NOT EXISTS content_posts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR(500) NOT NULL,
+    slug VARCHAR(500) UNIQUE NOT NULL,
+    
+    -- Content Storage
+    content_delta JSONB, -- Quill Delta format for editor
+    content_html TEXT,   -- Rendered HTML for display
+    excerpt TEXT,        -- Short description/summary
+    
+    -- Post Classification
+    post_type VARCHAR(50) NOT NULL DEFAULT 'blog', -- blog, testimonial, page, help
+    status VARCHAR(20) DEFAULT 'draft', -- draft, published, archived, scheduled
+    
+    -- Media & Visuals
+    featured_image_url VARCHAR(1000),
+    featured_image_alt VARCHAR(500),
+    gallery_images JSONB, -- Array of image objects
+    
+    -- Organization
+    category_id INTEGER REFERENCES content_categories(id) ON DELETE SET NULL,
+    author_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    
+    -- Publishing Control
+    publish_date TIMESTAMP,
+    scheduled_publish_date TIMESTAMP,
+    expires_at TIMESTAMP,
+    
+    -- SEO & Meta
+    seo_title VARCHAR(600),
+    seo_description VARCHAR(1000),
+    seo_keywords TEXT[],
+    meta_robots VARCHAR(100) DEFAULT 'index, follow',
+    canonical_url VARCHAR(1000),
+    
+    -- Social Media
+    social_image_url VARCHAR(1000),
+    social_title VARCHAR(300),
+    social_description VARCHAR(500),
+    
+    -- Engagement & Analytics
+    views_count INTEGER DEFAULT 0,
+    likes_count INTEGER DEFAULT 0,
+    shares_count INTEGER DEFAULT 0,
+    comments_enabled BOOLEAN DEFAULT TRUE,
+    
+    -- Testimonial-specific fields
+    customer_name VARCHAR(255),
+    customer_title VARCHAR(255),
+    customer_company VARCHAR(255),
+    customer_rating INTEGER CHECK (customer_rating >= 1 AND customer_rating <= 5),
+    customer_avatar_url VARCHAR(1000),
+    testimonial_date DATE,
+    is_featured BOOLEAN DEFAULT FALSE,
+    
+    -- Content Settings
+    allow_comments BOOLEAN DEFAULT TRUE,
+    is_sticky BOOLEAN DEFAULT FALSE,
+    password_protected BOOLEAN DEFAULT FALSE,
+    access_password VARCHAR(255),
+    
+    -- Metadata
+    metadata JSONB,
+    custom_fields JSONB,
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Content Post Tags Junction Table
+CREATE TABLE IF NOT EXISTS content_post_tags (
+    post_id UUID REFERENCES content_posts(id) ON DELETE CASCADE,
+    tag_id INTEGER REFERENCES content_tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (post_id, tag_id)
+);
+
+-- Content Media Library Table
+CREATE TABLE IF NOT EXISTS content_media (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    filename VARCHAR(500) NOT NULL,
+    original_name VARCHAR(500) NOT NULL,
+    file_path VARCHAR(1000) NOT NULL,
+    file_url VARCHAR(1000) NOT NULL,
+    
+    -- File Information
+    mime_type VARCHAR(255) NOT NULL,
+    file_size INTEGER NOT NULL,
+    file_extension VARCHAR(10),
+    
+    -- Media Classification
+    media_type VARCHAR(50) NOT NULL DEFAULT 'image', -- image, video, audio, document
+    
+    -- Image-specific fields
+    width INTEGER,
+    height INTEGER,
+    
+    -- Image variants/thumbnails
+    thumbnails JSONB, -- Array of thumbnail objects
+    
+    -- Organization
+    alt_text VARCHAR(500),
+    caption TEXT,
+    description TEXT,
+    
+    -- Usage & Relations
+    uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    folder_path VARCHAR(500),
+    tags TEXT[],
+    
+    -- SEO
+    seo_filename VARCHAR(500),
+    
+    -- Metadata
+    exif_data JSONB,
+    metadata JSONB,
+    
+    -- Status
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Content Comments Table
+CREATE TABLE IF NOT EXISTS content_comments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    post_id UUID NOT NULL REFERENCES content_posts(id) ON DELETE CASCADE,
+    parent_comment_id UUID REFERENCES content_comments(id) ON DELETE CASCADE,
+    
+    -- Commenter Information
+    author_name VARCHAR(255) NOT NULL,
+    author_email VARCHAR(255) NOT NULL,
+    author_website VARCHAR(500),
+    author_ip VARCHAR(45),
+    user_agent TEXT,
+    
+    -- Comment Content
+    content TEXT NOT NULL,
+    content_html TEXT, -- Processed/sanitized HTML
+    
+    -- Status & Moderation
+    status VARCHAR(20) DEFAULT 'pending', -- pending, approved, spam, deleted
+    is_approved BOOLEAN DEFAULT FALSE,
+    
+    -- Engagement
+    likes_count INTEGER DEFAULT 0,
+    replies_count INTEGER DEFAULT 0,
+    
+    -- Metadata
+    metadata JSONB,
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- SEO Settings Table
+CREATE TABLE IF NOT EXISTS content_seo_settings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    
+    -- Site-wide SEO Settings
+    site_title VARCHAR(300),
+    site_description VARCHAR(1000),
+    site_keywords TEXT[],
+    
+    -- Default Meta Settings
+    default_meta_title_template VARCHAR(500),
+    default_meta_description_template VARCHAR(1000),
+    default_meta_robots VARCHAR(100) DEFAULT 'index, follow',
+    
+    -- Social Media Defaults
+    default_og_type VARCHAR(50) DEFAULT 'website',
+    default_og_image VARCHAR(1000),
+    default_twitter_card VARCHAR(50) DEFAULT 'summary_large_image',
+    
+    -- Analytics & Tracking
+    google_analytics_id VARCHAR(50),
+    google_tag_manager_id VARCHAR(50),
+    facebook_pixel_id VARCHAR(50),
+    
+    -- Sitemap Settings
+    sitemap_enabled BOOLEAN DEFAULT TRUE,
+    sitemap_include_images BOOLEAN DEFAULT TRUE,
+    sitemap_change_frequency VARCHAR(20) DEFAULT 'weekly',
+    sitemap_priority DECIMAL(2,1) DEFAULT 0.8,
+    
+    -- Robots.txt Settings
+    robots_txt_content TEXT,
+    
+    -- Schema.org Settings
+    organization_name VARCHAR(255),
+    organization_logo VARCHAR(1000),
+    organization_url VARCHAR(1000),
+    
+    -- Breadcrumbs
+    breadcrumbs_enabled BOOLEAN DEFAULT TRUE,
+    breadcrumbs_separator VARCHAR(10) DEFAULT ' > ',
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Content Views Table (For Analytics)
+CREATE TABLE IF NOT EXISTS content_views (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    post_id UUID NOT NULL REFERENCES content_posts(id) ON DELETE CASCADE,
+    
+    -- Visitor Information
+    visitor_ip VARCHAR(45),
+    user_agent TEXT,
+    referrer_url VARCHAR(1000),
+    
+    -- Session Information
+    session_id VARCHAR(255),
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    
+    -- Geographic Data
+    country VARCHAR(2),
+    region VARCHAR(100),
+    city VARCHAR(100),
+    
+    -- Device & Browser
+    device_type VARCHAR(20), -- desktop, mobile, tablet
+    browser VARCHAR(50),
+    operating_system VARCHAR(50),
+    
+    -- Engagement Metrics
+    time_on_page INTEGER, -- seconds
+    scroll_depth INTEGER, -- percentage
+    
+    viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Content Menu Items Table (For Navigation)
+CREATE TABLE IF NOT EXISTS content_menu_items (
+    id SERIAL PRIMARY KEY,
+    menu_location VARCHAR(50) NOT NULL, -- header, footer, sidebar, mobile
+    
+    -- Menu Item Details
+    title VARCHAR(255) NOT NULL,
+    url VARCHAR(1000),
+    target VARCHAR(20) DEFAULT '_self',
+    css_classes VARCHAR(255),
+    
+    -- Content Link (if linking to internal content)
+    linked_post_id UUID REFERENCES content_posts(id) ON DELETE CASCADE,
+    
+    -- Organization
+    parent_id INTEGER REFERENCES content_menu_items(id) ON DELETE CASCADE,
+    sort_order INTEGER DEFAULT 0,
+    
+    -- Visibility
+    is_active BOOLEAN DEFAULT TRUE,
+    visibility_rules JSONB, -- User role/permission rules
+    
+    -- Metadata
+    description TEXT,
+    icon VARCHAR(100),
+    metadata JSONB,
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create Indexes for Content Management
+CREATE INDEX IF NOT EXISTS idx_content_posts_status ON content_posts(status);
+CREATE INDEX IF NOT EXISTS idx_content_posts_type ON content_posts(post_type);
+CREATE INDEX IF NOT EXISTS idx_content_posts_category ON content_posts(category_id);
+CREATE INDEX IF NOT EXISTS idx_content_posts_author ON content_posts(author_id);
+CREATE INDEX IF NOT EXISTS idx_content_posts_published ON content_posts(publish_date) WHERE status = 'published';
+CREATE INDEX IF NOT EXISTS idx_content_posts_slug ON content_posts(slug);
+CREATE INDEX IF NOT EXISTS idx_content_media_type ON content_media(media_type);
+CREATE INDEX IF NOT EXISTS idx_content_views_post ON content_views(post_id, viewed_at);
+CREATE INDEX IF NOT EXISTS idx_content_comments_post ON content_comments(post_id, status);
+CREATE INDEX IF NOT EXISTS idx_content_categories_slug ON content_categories(slug);
+CREATE INDEX IF NOT EXISTS idx_content_tags_slug ON content_tags(slug);
+
+-- Add updated_at triggers for content tables
+CREATE TRIGGER update_content_categories_updated_at BEFORE UPDATE ON content_categories FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_content_posts_updated_at BEFORE UPDATE ON content_posts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_content_media_updated_at BEFORE UPDATE ON content_media FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_content_comments_updated_at BEFORE UPDATE ON content_comments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_content_seo_settings_updated_at BEFORE UPDATE ON content_seo_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_content_menu_items_updated_at BEFORE UPDATE ON content_menu_items FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Insert Default Content Categories
+INSERT INTO content_categories (name, slug, description, sort_order) VALUES
+('Blog', 'blog', 'Company blog posts and articles', 1),
+('News & Updates', 'news', 'Company news and product updates', 2),
+('Tutorials', 'tutorials', 'How-to guides and tutorials', 3),
+('Case Studies', 'case-studies', 'Customer success stories and case studies', 4),
+('Company', 'company', 'About us and company information', 5)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Insert Default Content Tags
+INSERT INTO content_tags (name, slug, description) VALUES
+('QR Codes', 'qr-codes', 'Posts about QR code technology'),
+('Marketing', 'marketing', 'Marketing tips and strategies'),
+('Business', 'business', 'Business growth and development'),
+('Technology', 'technology', 'Technology news and updates'),
+('Tutorial', 'tutorial', 'Step-by-step guides'),
+('Tips', 'tips', 'Helpful tips and tricks'),
+('Best Practices', 'best-practices', 'Industry best practices'),
+('Case Study', 'case-study', 'Customer case studies'),
+('Feature Update', 'feature-update', 'New feature announcements'),
+('Success Story', 'success-story', 'Customer success stories')
+ON CONFLICT (slug) DO NOTHING;
+
+-- Insert Default SEO Settings
+INSERT INTO content_seo_settings (
+    site_title,
+    site_description,
+    site_keywords,
+    default_meta_title_template,
+    default_meta_description_template,
+    organization_name,
+    breadcrumbs_enabled
+) VALUES (
+    'QR Generation SaaS - Create Custom QR Codes',
+    'Professional QR code generation platform with advanced customization, analytics, and management features for businesses.',
+    ARRAY['QR codes', 'custom QR codes', 'QR generator', 'business QR codes', 'marketing QR codes'],
+    '%title% - QR Generation SaaS',
+    '%description% | Professional QR code generation platform',
+    'QR Generation SaaS',
+    TRUE
+) ON CONFLICT DO NOTHING;
+
+-- ===============================================
 -- DATABASE SCHEMA COMPLETE
 -- All features implemented:
 -- - Core QR SaaS Platform
@@ -3300,4 +3658,6 @@ CREATE TRIGGER update_campaign_analytics_updated_at BEFORE UPDATE ON campaign_an
 -- - Payment Processing
 -- - API & Integrations (SDK Generation)
 -- - E-commerce QR Service
+-- - MARKETING TOOLS SYSTEM
+-- - Content Management System
 -- ===============================================

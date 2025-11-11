@@ -1549,6 +1549,14 @@ Import the included Postman collection for comprehensive API testing.
       description: 'E-commerce QR functionality including inventory integrations, product QR codes, coupon codes, payment links, and comprehensive analytics'
     },
     {
+      name: 'Content Management',
+      description: 'Complete CMS with blog posts, testimonials, static pages, rich text editing with Quill integration, SEO management, and media handling'
+    },
+    {
+      name: 'Public Content',
+      description: 'Public endpoints for serving published content including posts, categories, and tags for website integration'
+    },
+    {
       name: 'Marketing Tools', 
       description: 'Comprehensive marketing tools including campaign management, UTM parameter tracking, conversion tracking, and retargeting pixel management'
     }
@@ -1568,6 +1576,7 @@ const options = {
     './src/docs/analytics-files-routes.ts',
     './src/docs/landing-page-routes.ts',
     './src/docs/ecommerce-swagger.ts',
+    './src/docs/content-routes.ts',
     '../analytics-service/src/docs/marketing-routes.ts',
     './src/index.ts',
     './src/app.ts'

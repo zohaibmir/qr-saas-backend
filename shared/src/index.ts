@@ -3,6 +3,7 @@ export * from './types/qr.types';
 export * from './types/analytics.types';
 export * from './types/marketing.types';
 export * from './types/file.types';
+export * from './types/content.types';
 export * from './types/common.types';
 export * from './types/landing-page.types';
 export * from './types/ecommerce.types';

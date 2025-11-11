@@ -17,10 +17,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./types/user.types"), exports);
 __exportStar(require("./types/qr.types"), exports);
 __exportStar(require("./types/analytics.types"), exports);
+__exportStar(require("./types/marketing.types"), exports);
 __exportStar(require("./types/file.types"), exports);
+__exportStar(require("./types/content.types"), exports);
 __exportStar(require("./types/common.types"), exports);
 __exportStar(require("./types/landing-page.types"), exports);
+__exportStar(require("./types/ecommerce.types"), exports);
 __exportStar(require("./interfaces/repositories.interface"), exports);
 __exportStar(require("./interfaces/services.interface"), exports);
 __exportStar(require("./utils/errors"), exports);
+__exportStar(require("./services/qr-analytics-integration.service"), exports);
 //# sourceMappingURL=index.js.map

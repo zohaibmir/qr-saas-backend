@@ -103,6 +103,12 @@ export class ProxyController {
         targetService: 'ecommerce-service',
         pathRewrite: '/api',
         requiresAuth: true // E-commerce operations require authentication
+      },
+      {
+        path: '/api/content',
+        targetService: 'content-service',
+        pathRewrite: '/content',
+        requiresAuth: false // Mix of public and private endpoints, handled by service
       }
     ];
   }
