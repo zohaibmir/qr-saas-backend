@@ -51,6 +51,12 @@ export class ProxyController {
         requiresAuth: false // Mix of public and private endpoints
       },
       {
+        path: '/api/marketing',
+        targetService: 'analytics-service',
+        pathRewrite: '/marketing',
+        requiresAuth: true // Marketing tools require authentication
+      },
+      {
         path: '/api/files',
         targetService: 'file-service',
         pathRewrite: '/files',

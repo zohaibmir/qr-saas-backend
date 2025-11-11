@@ -2981,6 +2981,315 @@ CREATE TRIGGER update_coupons_updated_at BEFORE UPDATE ON coupons FOR EACH ROW E
 CREATE TRIGGER update_payment_links_updated_at BEFORE UPDATE ON payment_links FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ===============================================
+-- MARKETING TOOLS SYSTEM
+-- Campaign management, UTM tracking, conversion attribution, and retargeting pixels
+-- ===============================================
+
+-- Marketing Campaigns Table
+CREATE TABLE IF NOT EXISTS marketing_campaigns (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    campaign_type VARCHAR(50) NOT NULL CHECK (campaign_type IN ('awareness', 'acquisition', 'conversion', 'retention', 'referral')),
+    status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'paused', 'completed', 'archived')),
+    
+    -- Campaign targeting
+    target_audience TEXT, -- Description of target audience
+    geographic_targets TEXT[], -- Array of countries/regions
+    device_targets TEXT[], -- Array of device types
+    
+    -- Campaign dates
+    start_date TIMESTAMP,
+    end_date TIMESTAMP,
+    
+    -- Budget and goals
+    budget_amount DECIMAL(12,2),
+    budget_currency VARCHAR(3) DEFAULT 'USD',
+    target_conversions INTEGER,
+    target_cpa DECIMAL(10,2), -- Cost per acquisition
+    
+    -- Campaign settings
+    utm_source VARCHAR(255),
+    utm_medium VARCHAR(255),
+    utm_campaign VARCHAR(255),
+    utm_term VARCHAR(255),
+    utm_content VARCHAR(255),
+    
+    -- Metadata
+    tags TEXT[], -- Array of campaign tags
+    metadata JSONB,
+    
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Campaign QR Codes Junction Table
+CREATE TABLE IF NOT EXISTS campaign_qr_codes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    campaign_id UUID NOT NULL REFERENCES marketing_campaigns(id) ON DELETE CASCADE,
+    qr_code_id UUID NOT NULL REFERENCES qr_codes(id) ON DELETE CASCADE,
+    added_at TIMESTAMP DEFAULT NOW(),
+    
+    -- Performance tracking
+    scans_count INTEGER DEFAULT 0,
+    conversions_count INTEGER DEFAULT 0,
+    last_scan_at TIMESTAMP,
+    
+    is_active BOOLEAN DEFAULT TRUE,
+    UNIQUE(campaign_id, qr_code_id)
+);
+
+-- UTM Tracking Parameters Table
+CREATE TABLE IF NOT EXISTS utm_tracking (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    qr_code_id UUID NOT NULL REFERENCES qr_codes(id) ON DELETE CASCADE,
+    campaign_id UUID REFERENCES marketing_campaigns(id) ON DELETE SET NULL,
+    
+    -- UTM Parameters
+    utm_source VARCHAR(255) NOT NULL,
+    utm_medium VARCHAR(255) NOT NULL,
+    utm_campaign VARCHAR(255) NOT NULL,
+    utm_term VARCHAR(255),
+    utm_content VARCHAR(255),
+    
+    -- Generated URLs
+    original_url TEXT NOT NULL,
+    utm_url TEXT NOT NULL,
+    
+    -- Tracking data
+    clicks_count INTEGER DEFAULT 0,
+    unique_clicks_count INTEGER DEFAULT 0,
+    conversions_count INTEGER DEFAULT 0,
+    first_click_at TIMESTAMP,
+    last_click_at TIMESTAMP,
+    
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- UTM Events Table (for detailed tracking)
+CREATE TABLE IF NOT EXISTS utm_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    utm_tracking_id UUID NOT NULL REFERENCES utm_tracking(id) ON DELETE CASCADE,
+    qr_code_id UUID NOT NULL REFERENCES qr_codes(id) ON DELETE CASCADE,
+    session_id VARCHAR(255),
+    
+    -- UTM parameters at time of click
+    utm_source VARCHAR(255),
+    utm_medium VARCHAR(255),
+    utm_campaign VARCHAR(255),
+    utm_term VARCHAR(255),
+    utm_content VARCHAR(255),
+    
+    -- Event details
+    event_type VARCHAR(50) DEFAULT 'click' CHECK (event_type IN ('click', 'view', 'conversion', 'bounce')),
+    referrer_url TEXT,
+    landing_page_url TEXT,
+    user_agent TEXT,
+    ip_address INET,
+    
+    -- Attribution
+    attribution_type VARCHAR(50) DEFAULT 'last_click',
+    attribution_value DECIMAL(10,2),
+    
+    -- Geolocation
+    country VARCHAR(2),
+    region VARCHAR(255),
+    city VARCHAR(255),
+    
+    timestamp TIMESTAMP DEFAULT NOW()
+);
+
+-- Retargeting Pixels Table
+CREATE TABLE IF NOT EXISTS retargeting_pixels (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    campaign_id UUID REFERENCES marketing_campaigns(id) ON DELETE SET NULL,
+    
+    name VARCHAR(255) NOT NULL,
+    pixel_type VARCHAR(50) NOT NULL CHECK (pixel_type IN ('facebook', 'google', 'linkedin', 'twitter', 'custom')),
+    pixel_id VARCHAR(255) NOT NULL, -- Platform-specific pixel ID
+    
+    -- Pixel configuration
+    pixel_code TEXT NOT NULL, -- HTML/JavaScript pixel code
+    trigger_events TEXT[] DEFAULT '{"page_view"}', -- Array of events that trigger pixel
+    
+    -- Targeting settings
+    target_qr_codes UUID[], -- Array of QR code IDs to track
+    target_campaigns UUID[], -- Array of campaign IDs to track
+    
+    -- Pixel settings
+    is_test_mode BOOLEAN DEFAULT FALSE,
+    custom_parameters JSONB, -- Platform-specific parameters
+    
+    -- Activity tracking
+    fires_count INTEGER DEFAULT 0,
+    last_fired_at TIMESTAMP,
+    
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Retargeting Pixel Events Table
+CREATE TABLE IF NOT EXISTS retargeting_pixel_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    pixel_id UUID NOT NULL REFERENCES retargeting_pixels(id) ON DELETE CASCADE,
+    qr_code_id UUID REFERENCES qr_codes(id) ON DELETE SET NULL,
+    campaign_id UUID REFERENCES marketing_campaigns(id) ON DELETE SET NULL,
+    
+    -- Event details
+    event_type VARCHAR(50) NOT NULL,
+    event_value DECIMAL(10,2),
+    event_currency VARCHAR(3),
+    
+    -- User context
+    session_id VARCHAR(255),
+    user_fingerprint VARCHAR(255),
+    ip_address INET,
+    user_agent TEXT,
+    referrer_url TEXT,
+    page_url TEXT,
+    
+    -- Platform data
+    platform_event_id VARCHAR(255), -- Event ID from platform (Facebook, Google, etc.)
+    platform_response JSONB, -- Response from platform API
+    
+    -- Geolocation
+    country VARCHAR(2),
+    region VARCHAR(255),
+    city VARCHAR(255),
+    
+    fired_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Campaign Analytics Summary Table
+CREATE TABLE IF NOT EXISTS campaign_analytics (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    campaign_id UUID NOT NULL REFERENCES marketing_campaigns(id) ON DELETE CASCADE,
+    
+    -- Date for daily aggregation
+    analytics_date DATE NOT NULL,
+    
+    -- Basic metrics
+    impressions INTEGER DEFAULT 0,
+    clicks INTEGER DEFAULT 0,
+    unique_clicks INTEGER DEFAULT 0,
+    scans INTEGER DEFAULT 0,
+    unique_scans INTEGER DEFAULT 0,
+    
+    -- Conversion metrics
+    conversions INTEGER DEFAULT 0,
+    conversion_value DECIMAL(12,2) DEFAULT 0,
+    
+    -- Campaign performance
+    click_through_rate DECIMAL(5,4) DEFAULT 0, -- CTR
+    conversion_rate DECIMAL(5,4) DEFAULT 0, -- CVR
+    cost_per_click DECIMAL(10,2) DEFAULT 0, -- CPC
+    cost_per_conversion DECIMAL(10,2) DEFAULT 0, -- CPA
+    return_on_ad_spend DECIMAL(10,4) DEFAULT 0, -- ROAS
+    
+    -- UTM performance
+    top_utm_source VARCHAR(255),
+    top_utm_medium VARCHAR(255),
+    top_utm_content VARCHAR(255),
+    
+    -- Geographic performance
+    top_country VARCHAR(2),
+    top_region VARCHAR(255),
+    
+    -- Device performance
+    top_device_type VARCHAR(50),
+    mobile_percentage DECIMAL(5,2) DEFAULT 0,
+    
+    -- Temporal patterns
+    peak_hour INTEGER, -- Hour with most activity
+    peak_day_of_week INTEGER, -- Day with most activity
+    
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    
+    UNIQUE(campaign_id, analytics_date)
+);
+
+-- Campaign Conversion Attribution Table
+CREATE TABLE IF NOT EXISTS campaign_conversion_attribution (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    campaign_id UUID NOT NULL REFERENCES marketing_campaigns(id) ON DELETE CASCADE,
+    conversion_event_id UUID NOT NULL REFERENCES conversion_events(id) ON DELETE CASCADE,
+    qr_code_id UUID NOT NULL REFERENCES qr_codes(id) ON DELETE CASCADE,
+    utm_tracking_id UUID REFERENCES utm_tracking(id) ON DELETE SET NULL,
+    
+    -- Attribution model
+    attribution_model VARCHAR(50) NOT NULL CHECK (attribution_model IN ('first_touch', 'last_touch', 'linear', 'time_decay', 'position_based')),
+    attribution_weight DECIMAL(5,4) DEFAULT 1.0, -- Weight for multi-touch attribution
+    
+    -- Attribution timing
+    touch_timestamp TIMESTAMP NOT NULL,
+    conversion_timestamp TIMESTAMP NOT NULL,
+    time_to_conversion INTERVAL, -- Time between touch and conversion
+    
+    -- Attribution value
+    attributed_value DECIMAL(10,2),
+    attributed_currency VARCHAR(3),
+    
+    -- Context
+    touch_point VARCHAR(255), -- Source of the touch (UTM source, QR code, etc.)
+    conversion_path TEXT[], -- Array of touch points leading to conversion
+    
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Add indexes for marketing tables
+CREATE INDEX IF NOT EXISTS idx_marketing_campaigns_user_id ON marketing_campaigns(user_id);
+CREATE INDEX IF NOT EXISTS idx_marketing_campaigns_status ON marketing_campaigns(status);
+CREATE INDEX IF NOT EXISTS idx_marketing_campaigns_type ON marketing_campaigns(campaign_type);
+CREATE INDEX IF NOT EXISTS idx_marketing_campaigns_dates ON marketing_campaigns(start_date, end_date);
+
+CREATE INDEX IF NOT EXISTS idx_campaign_qr_codes_campaign_id ON campaign_qr_codes(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_qr_codes_qr_code_id ON campaign_qr_codes(qr_code_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_qr_codes_active ON campaign_qr_codes(is_active);
+
+CREATE INDEX IF NOT EXISTS idx_utm_tracking_qr_code_id ON utm_tracking(qr_code_id);
+CREATE INDEX IF NOT EXISTS idx_utm_tracking_campaign_id ON utm_tracking(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_utm_tracking_source ON utm_tracking(utm_source);
+CREATE INDEX IF NOT EXISTS idx_utm_tracking_medium ON utm_tracking(utm_medium);
+CREATE INDEX IF NOT EXISTS idx_utm_tracking_campaign ON utm_tracking(utm_campaign);
+
+CREATE INDEX IF NOT EXISTS idx_utm_events_utm_tracking_id ON utm_events(utm_tracking_id);
+CREATE INDEX IF NOT EXISTS idx_utm_events_qr_code_id ON utm_events(qr_code_id);
+CREATE INDEX IF NOT EXISTS idx_utm_events_session_id ON utm_events(session_id);
+CREATE INDEX IF NOT EXISTS idx_utm_events_timestamp ON utm_events(timestamp);
+CREATE INDEX IF NOT EXISTS idx_utm_events_event_type ON utm_events(event_type);
+
+CREATE INDEX IF NOT EXISTS idx_retargeting_pixels_user_id ON retargeting_pixels(user_id);
+CREATE INDEX IF NOT EXISTS idx_retargeting_pixels_campaign_id ON retargeting_pixels(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_retargeting_pixels_type ON retargeting_pixels(pixel_type);
+CREATE INDEX IF NOT EXISTS idx_retargeting_pixels_active ON retargeting_pixels(is_active);
+
+CREATE INDEX IF NOT EXISTS idx_retargeting_pixel_events_pixel_id ON retargeting_pixel_events(pixel_id);
+CREATE INDEX IF NOT EXISTS idx_retargeting_pixel_events_qr_code_id ON retargeting_pixel_events(qr_code_id);
+CREATE INDEX IF NOT EXISTS idx_retargeting_pixel_events_campaign_id ON retargeting_pixel_events(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_retargeting_pixel_events_fired_at ON retargeting_pixel_events(fired_at);
+
+CREATE INDEX IF NOT EXISTS idx_campaign_analytics_campaign_id ON campaign_analytics(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_analytics_date ON campaign_analytics(analytics_date);
+
+CREATE INDEX IF NOT EXISTS idx_campaign_conversion_attribution_campaign_id ON campaign_conversion_attribution(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_conversion_attribution_conversion_id ON campaign_conversion_attribution(conversion_event_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_conversion_attribution_qr_code_id ON campaign_conversion_attribution(qr_code_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_conversion_attribution_touch_time ON campaign_conversion_attribution(touch_timestamp);
+
+-- Add triggers for updated_at columns on marketing tables
+CREATE TRIGGER update_marketing_campaigns_updated_at BEFORE UPDATE ON marketing_campaigns FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_utm_tracking_updated_at BEFORE UPDATE ON utm_tracking FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_retargeting_pixels_updated_at BEFORE UPDATE ON retargeting_pixels FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_campaign_analytics_updated_at BEFORE UPDATE ON campaign_analytics FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ===============================================
 -- DATABASE SCHEMA COMPLETE
 -- All features implemented:
 -- - Core QR SaaS Platform

@@ -112,6 +112,56 @@ export interface IAnalyticsRepository {
   createAnalyticsAlert(alert: Omit<any, 'id' | 'createdAt' | 'updatedAt'>): Promise<any>;
   getAnalyticsAlerts(qrCodeId: string): Promise<any[]>;
   updateAlertTrigger(alertId: string, triggeredAt: Date, value: number): Promise<void>;
+
+  // Marketing Tools Methods
+  // Campaign management
+  createCampaign(campaign: any): Promise<any>;
+  getCampaign(campaignId: string, userId: string): Promise<any | null>;
+  getUserCampaigns(userId: string, limit?: number, offset?: number): Promise<any[]>;
+  updateCampaign(campaignId: string, updates: any): Promise<any>;
+  deleteCampaign(campaignId: string): Promise<boolean>;
+  
+  // Campaign QR Code associations
+  createCampaignQRCode(association: any): Promise<any>;
+  getCampaignQRCodeAssociation(campaignId: string, qrCodeId: string): Promise<any | null>;
+  getCampaignQRCodes(campaignId: string): Promise<any[]>;
+  removeCampaignQRCodeAssociation(campaignId: string, qrCodeId: string): Promise<boolean>;
+  updateCampaignQRCodeStats(campaignId: string, qrCodeId: string, scansIncrement?: number, conversionsIncrement?: number): Promise<void>;
+  
+  // UTM tracking
+  createUTMTracking(utmTracking: any): Promise<any>;
+  getUTMTracking(utmTrackingId: string, userId: string): Promise<any | null>;
+  getUTMTrackingByQRCode(qrCodeId: string, userId: string): Promise<any[]>;
+  updateUTMTracking(utmTrackingId: string, updates: any): Promise<any>;
+  deleteUTMTracking(utmTrackingId: string): Promise<boolean>;
+  
+  // UTM events
+  createUTMEvent(event: any): Promise<any>;
+  getUTMEvents(utmTrackingId: string, limit?: number, offset?: number): Promise<any[]>;
+  updateUTMTrackingStats(utmTrackingId: string, eventType: string): Promise<void>;
+  
+  // Retargeting pixels
+  createRetargetingPixel(pixel: any): Promise<any>;
+  getRetargetingPixel(pixelId: string, userId: string): Promise<any | null>;
+  getRetargetingPixelById(pixelId: string): Promise<any | null>;
+  getUserRetargetingPixels(userId: string, limit?: number, offset?: number): Promise<any[]>;
+  updateRetargetingPixel(pixelId: string, updates: any): Promise<any>;
+  deleteRetargetingPixel(pixelId: string): Promise<boolean>;
+  incrementPixelFireCount(pixelId: string): Promise<void>;
+  
+  // Retargeting pixel events
+  createRetargetingPixelEvent(event: any): Promise<any>;
+  getRetargetingPixelEvents(pixelId: string, limit?: number, offset?: number): Promise<any[]>;
+  updateRetargetingPixelEvent(eventId: string, updates: any): Promise<any>;
+  
+  // Campaign analytics
+  createCampaignAnalytics(analytics: any): Promise<any>;
+  getCampaignAnalytics(campaignId: string, startDate?: Date, endDate?: Date): Promise<any[]>;
+  updateCampaignAnalytics(campaignId: string, date: Date, updates: any): Promise<any>;
+  
+  // Campaign conversion attribution
+  createCampaignConversionAttribution(attribution: any): Promise<any>;
+  getCampaignConversionAttributions(campaignId: string, startDate?: Date, endDate?: Date): Promise<any[]>;
 }
 
 // Service Interfaces

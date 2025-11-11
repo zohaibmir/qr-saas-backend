@@ -1529,4 +1529,917 @@ export class AnalyticsRepository implements IAnalyticsRepository {
     
     return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
   }
+
+  // ===============================================
+  // MARKETING TOOLS REPOSITORY METHODS
+  // ===============================================
+
+  // Campaign management methods
+  async createCampaign(campaign: any): Promise<any> {
+    try {
+      const query = `
+        INSERT INTO marketing_campaigns (
+          id, user_id, name, description, campaign_type, status,
+          target_audience, geographic_targets, device_targets,
+          start_date, end_date, budget_amount, budget_currency,
+          target_conversions, target_cpa, utm_source, utm_medium,
+          utm_campaign, utm_term, utm_content, tags, metadata,
+          is_active, created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+          $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25
+        ) RETURNING *
+      `;
+
+      const values = [
+        campaign.id,
+        campaign.userId,
+        campaign.name,
+        campaign.description,
+        campaign.campaignType,
+        campaign.status,
+        campaign.targetAudience,
+        campaign.geographicTargets,
+        campaign.deviceTargets,
+        campaign.startDate,
+        campaign.endDate,
+        campaign.budgetAmount,
+        campaign.budgetCurrency,
+        campaign.targetConversions,
+        campaign.targetCpa,
+        campaign.utmSource,
+        campaign.utmMedium,
+        campaign.utmCampaign,
+        campaign.utmTerm,
+        campaign.utmContent,
+        campaign.tags,
+        campaign.metadata ? JSON.stringify(campaign.metadata) : null,
+        campaign.isActive,
+        campaign.createdAt,
+        campaign.updatedAt
+      ];
+
+      const result = await this.database.query(query, values);
+      return result.rows[0];
+    } catch (error) {
+      this.logger.error('Failed to create campaign:', error);
+      throw new DatabaseError('Failed to create marketing campaign');
+    }
+  }
+
+  async getCampaign(campaignId: string, userId: string): Promise<any | null> {
+    try {
+      const query = `
+        SELECT * FROM marketing_campaigns 
+        WHERE id = $1 AND user_id = $2 AND is_active = true
+      `;
+      const result = await this.database.query(query, [campaignId, userId]);
+      return result.rows[0] || null;
+    } catch (error) {
+      this.logger.error('Failed to get campaign:', error);
+      throw new DatabaseError('Failed to retrieve marketing campaign');
+    }
+  }
+
+  async getUserCampaigns(userId: string, limit: number = 20, offset: number = 0): Promise<any[]> {
+    try {
+      const query = `
+        SELECT * FROM marketing_campaigns 
+        WHERE user_id = $1 AND is_active = true
+        ORDER BY created_at DESC
+        LIMIT $2 OFFSET $3
+      `;
+      const result = await this.database.query(query, [userId, limit, offset]);
+      return result.rows;
+    } catch (error) {
+      this.logger.error('Failed to get user campaigns:', error);
+      throw new DatabaseError('Failed to retrieve user campaigns');
+    }
+  }
+
+  async updateCampaign(campaignId: string, updates: any): Promise<any> {
+    try {
+      const setFields = [];
+      const values = [];
+      let paramIndex = 1;
+
+      for (const [key, value] of Object.entries(updates)) {
+        if (key === 'metadata' && value) {
+          setFields.push(`${this.camelToSnake(key)} = $${paramIndex}`);
+          values.push(JSON.stringify(value));
+        } else if (value !== undefined) {
+          setFields.push(`${this.camelToSnake(key)} = $${paramIndex}`);
+          values.push(value);
+        }
+        paramIndex++;
+      }
+
+      if (setFields.length === 0) {
+        throw new Error('No fields to update');
+      }
+
+      values.push(campaignId);
+
+      const query = `
+        UPDATE marketing_campaigns 
+        SET ${setFields.join(', ')}, updated_at = NOW()
+        WHERE id = $${paramIndex}
+        RETURNING *
+      `;
+
+      const result = await this.database.query(query, values);
+      return result.rows[0];
+    } catch (error) {
+      this.logger.error('Failed to update campaign:', error);
+      throw new DatabaseError('Failed to update marketing campaign');
+    }
+  }
+
+  async deleteCampaign(campaignId: string): Promise<boolean> {
+    try {
+      const query = `
+        UPDATE marketing_campaigns 
+        SET is_active = false, status = 'archived', updated_at = NOW()
+        WHERE id = $1
+      `;
+      const result = await this.database.query(query, [campaignId]);
+      return result.rowCount ? result.rowCount > 0 : false;
+    } catch (error) {
+      this.logger.error('Failed to delete campaign:', error);
+      throw new DatabaseError('Failed to delete marketing campaign');
+    }
+  }
+
+  // Campaign QR Code association methods
+  async createCampaignQRCode(association: any): Promise<any> {
+    try {
+      const query = `
+        INSERT INTO campaign_qr_codes (
+          id, campaign_id, qr_code_id, added_at, scans_count,
+          conversions_count, is_active
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *
+      `;
+
+      const values = [
+        association.id,
+        association.campaignId,
+        association.qrCodeId,
+        association.addedAt,
+        association.scansCount || 0,
+        association.conversionsCount || 0,
+        association.isActive
+      ];
+
+      const result = await this.database.query(query, values);
+      return result.rows[0];
+    } catch (error) {
+      this.logger.error('Failed to create campaign QR code association:', error);
+      throw new DatabaseError('Failed to create campaign QR code association');
+    }
+  }
+
+  async getCampaignQRCodeAssociation(campaignId: string, qrCodeId: string): Promise<any | null> {
+    try {
+      const query = `
+        SELECT * FROM campaign_qr_codes 
+        WHERE campaign_id = $1 AND qr_code_id = $2 AND is_active = true
+      `;
+      const result = await this.database.query(query, [campaignId, qrCodeId]);
+      return result.rows[0] || null;
+    } catch (error) {
+      this.logger.error('Failed to get campaign QR code association:', error);
+      throw new DatabaseError('Failed to retrieve campaign QR code association');
+    }
+  }
+
+  async getCampaignQRCodes(campaignId: string): Promise<any[]> {
+    try {
+      const query = `
+        SELECT cqr.*, qr.name as qr_code_name, qr.type as qr_code_type
+        FROM campaign_qr_codes cqr
+        LEFT JOIN qr_codes qr ON cqr.qr_code_id = qr.id
+        WHERE cqr.campaign_id = $1 AND cqr.is_active = true
+        ORDER BY cqr.added_at DESC
+      `;
+      const result = await this.database.query(query, [campaignId]);
+      return result.rows;
+    } catch (error) {
+      this.logger.error('Failed to get campaign QR codes:', error);
+      throw new DatabaseError('Failed to retrieve campaign QR codes');
+    }
+  }
+
+  async removeCampaignQRCodeAssociation(campaignId: string, qrCodeId: string): Promise<boolean> {
+    try {
+      const query = `
+        UPDATE campaign_qr_codes 
+        SET is_active = false
+        WHERE campaign_id = $1 AND qr_code_id = $2
+      `;
+      const result = await this.database.query(query, [campaignId, qrCodeId]);
+      return result.rowCount ? result.rowCount > 0 : false;
+    } catch (error) {
+      this.logger.error('Failed to remove campaign QR code association:', error);
+      throw new DatabaseError('Failed to remove campaign QR code association');
+    }
+  }
+
+  async updateCampaignQRCodeStats(
+    campaignId: string, 
+    qrCodeId: string, 
+    scansIncrement: number = 0, 
+    conversionsIncrement: number = 0
+  ): Promise<void> {
+    try {
+      const query = `
+        UPDATE campaign_qr_codes 
+        SET 
+          scans_count = scans_count + $3,
+          conversions_count = conversions_count + $4,
+          last_scan_at = CASE WHEN $3 > 0 THEN NOW() ELSE last_scan_at END
+        WHERE campaign_id = $1 AND qr_code_id = $2
+      `;
+      await this.database.query(query, [campaignId, qrCodeId, scansIncrement, conversionsIncrement]);
+    } catch (error) {
+      this.logger.error('Failed to update campaign QR code stats:', error);
+      throw new DatabaseError('Failed to update campaign QR code statistics');
+    }
+  }
+
+  // UTM tracking methods
+  async createUTMTracking(utmTracking: any): Promise<any> {
+    try {
+      const query = `
+        INSERT INTO utm_tracking (
+          id, qr_code_id, campaign_id, utm_source, utm_medium,
+          utm_campaign, utm_term, utm_content, original_url, utm_url,
+          clicks_count, unique_clicks_count, conversions_count,
+          is_active, created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+        ) RETURNING *
+      `;
+
+      const values = [
+        utmTracking.id,
+        utmTracking.qrCodeId,
+        utmTracking.campaignId,
+        utmTracking.utmSource,
+        utmTracking.utmMedium,
+        utmTracking.utmCampaign,
+        utmTracking.utmTerm,
+        utmTracking.utmContent,
+        utmTracking.originalUrl,
+        utmTracking.utmUrl,
+        utmTracking.clicksCount || 0,
+        utmTracking.uniqueClicksCount || 0,
+        utmTracking.conversionsCount || 0,
+        utmTracking.isActive,
+        utmTracking.createdAt,
+        utmTracking.updatedAt
+      ];
+
+      const result = await this.database.query(query, values);
+      return result.rows[0];
+    } catch (error) {
+      this.logger.error('Failed to create UTM tracking:', error);
+      throw new DatabaseError('Failed to create UTM tracking');
+    }
+  }
+
+  async getUTMTracking(utmTrackingId: string, userId: string): Promise<any | null> {
+    try {
+      const query = `
+        SELECT ut.*, qr.user_id
+        FROM utm_tracking ut
+        JOIN qr_codes qr ON ut.qr_code_id = qr.id
+        WHERE ut.id = $1 AND qr.user_id = $2 AND ut.is_active = true
+      `;
+      const result = await this.database.query(query, [utmTrackingId, userId]);
+      return result.rows[0] || null;
+    } catch (error) {
+      this.logger.error('Failed to get UTM tracking:', error);
+      throw new DatabaseError('Failed to retrieve UTM tracking');
+    }
+  }
+
+  async getUTMTrackingByQRCode(qrCodeId: string, userId: string): Promise<any[]> {
+    try {
+      const query = `
+        SELECT ut.*
+        FROM utm_tracking ut
+        JOIN qr_codes qr ON ut.qr_code_id = qr.id
+        WHERE ut.qr_code_id = $1 AND qr.user_id = $2 AND ut.is_active = true
+        ORDER BY ut.created_at DESC
+      `;
+      const result = await this.database.query(query, [qrCodeId, userId]);
+      return result.rows;
+    } catch (error) {
+      this.logger.error('Failed to get UTM tracking by QR code:', error);
+      throw new DatabaseError('Failed to retrieve UTM tracking for QR code');
+    }
+  }
+
+  async updateUTMTracking(utmTrackingId: string, updates: any): Promise<any> {
+    try {
+      const setFields = [];
+      const values = [];
+      let paramIndex = 1;
+
+      for (const [key, value] of Object.entries(updates)) {
+        if (value !== undefined) {
+          setFields.push(`${this.camelToSnake(key)} = $${paramIndex}`);
+          values.push(value);
+          paramIndex++;
+        }
+      }
+
+      if (setFields.length === 0) {
+        throw new Error('No fields to update');
+      }
+
+      values.push(utmTrackingId);
+
+      const query = `
+        UPDATE utm_tracking 
+        SET ${setFields.join(', ')}, updated_at = NOW()
+        WHERE id = $${paramIndex}
+        RETURNING *
+      `;
+
+      const result = await this.database.query(query, values);
+      return result.rows[0];
+    } catch (error) {
+      this.logger.error('Failed to update UTM tracking:', error);
+      throw new DatabaseError('Failed to update UTM tracking');
+    }
+  }
+
+  async deleteUTMTracking(utmTrackingId: string): Promise<boolean> {
+    try {
+      const query = `
+        UPDATE utm_tracking 
+        SET is_active = false, updated_at = NOW()
+        WHERE id = $1
+      `;
+      const result = await this.database.query(query, [utmTrackingId]);
+      return result.rowCount ? result.rowCount > 0 : false;
+    } catch (error) {
+      this.logger.error('Failed to delete UTM tracking:', error);
+      throw new DatabaseError('Failed to delete UTM tracking');
+    }
+  }
+
+  // UTM events methods
+  async createUTMEvent(event: any): Promise<any> {
+    try {
+      const query = `
+        INSERT INTO utm_events (
+          id, utm_tracking_id, qr_code_id, session_id, utm_source,
+          utm_medium, utm_campaign, utm_term, utm_content, event_type,
+          referrer_url, landing_page_url, user_agent, ip_address,
+          attribution_type, attribution_value, country, region, city, timestamp
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+        ) RETURNING *
+      `;
+
+      const values = [
+        event.id,
+        event.utmTrackingId,
+        event.qrCodeId,
+        event.sessionId,
+        event.utmSource,
+        event.utmMedium,
+        event.utmCampaign,
+        event.utmTerm,
+        event.utmContent,
+        event.eventType,
+        event.referrerUrl,
+        event.landingPageUrl,
+        event.userAgent,
+        event.ipAddress,
+        event.attributionType,
+        event.attributionValue,
+        event.country,
+        event.region,
+        event.city,
+        event.timestamp
+      ];
+
+      const result = await this.database.query(query, values);
+      return result.rows[0];
+    } catch (error) {
+      this.logger.error('Failed to create UTM event:', error);
+      throw new DatabaseError('Failed to create UTM event');
+    }
+  }
+
+  async getUTMEvents(utmTrackingId: string, limit: number = 100, offset: number = 0): Promise<any[]> {
+    try {
+      const query = `
+        SELECT * FROM utm_events 
+        WHERE utm_tracking_id = $1
+        ORDER BY timestamp DESC
+        LIMIT $2 OFFSET $3
+      `;
+      const result = await this.database.query(query, [utmTrackingId, limit, offset]);
+      return result.rows;
+    } catch (error) {
+      this.logger.error('Failed to get UTM events:', error);
+      throw new DatabaseError('Failed to retrieve UTM events');
+    }
+  }
+
+  async updateUTMTrackingStats(utmTrackingId: string, eventType: string): Promise<void> {
+    try {
+      let query = '';
+      
+      if (eventType === 'click') {
+        query = `
+          UPDATE utm_tracking 
+          SET 
+            clicks_count = clicks_count + 1,
+            first_click_at = COALESCE(first_click_at, NOW()),
+            last_click_at = NOW()
+          WHERE id = $1
+        `;
+      } else if (eventType === 'conversion') {
+        query = `
+          UPDATE utm_tracking 
+          SET conversions_count = conversions_count + 1
+          WHERE id = $1
+        `;
+      } else {
+        return; // No update needed for other event types
+      }
+
+      await this.database.query(query, [utmTrackingId]);
+    } catch (error) {
+      this.logger.error('Failed to update UTM tracking stats:', error);
+      throw new DatabaseError('Failed to update UTM tracking statistics');
+    }
+  }
+
+  // Retargeting pixel methods
+  async createRetargetingPixel(pixel: any): Promise<any> {
+    try {
+      const query = `
+        INSERT INTO retargeting_pixels (
+          id, user_id, campaign_id, name, pixel_type, pixel_id,
+          pixel_code, trigger_events, target_qr_codes, target_campaigns,
+          is_test_mode, custom_parameters, fires_count, is_active,
+          created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+        ) RETURNING *
+      `;
+
+      const values = [
+        pixel.id,
+        pixel.userId,
+        pixel.campaignId,
+        pixel.name,
+        pixel.pixelType,
+        pixel.pixelId,
+        pixel.pixelCode,
+        pixel.triggerEvents,
+        pixel.targetQrCodes,
+        pixel.targetCampaigns,
+        pixel.isTestMode,
+        pixel.customParameters ? JSON.stringify(pixel.customParameters) : null,
+        pixel.firesCount || 0,
+        pixel.isActive,
+        pixel.createdAt,
+        pixel.updatedAt
+      ];
+
+      const result = await this.database.query(query, values);
+      return result.rows[0];
+    } catch (error) {
+      this.logger.error('Failed to create retargeting pixel:', error);
+      throw new DatabaseError('Failed to create retargeting pixel');
+    }
+  }
+
+  async getRetargetingPixel(pixelId: string, userId: string): Promise<any | null> {
+    try {
+      const query = `
+        SELECT * FROM retargeting_pixels 
+        WHERE id = $1 AND user_id = $2 AND is_active = true
+      `;
+      const result = await this.database.query(query, [pixelId, userId]);
+      return result.rows[0] || null;
+    } catch (error) {
+      this.logger.error('Failed to get retargeting pixel:', error);
+      throw new DatabaseError('Failed to retrieve retargeting pixel');
+    }
+  }
+
+  async getRetargetingPixelById(pixelId: string): Promise<any | null> {
+    try {
+      const query = `
+        SELECT * FROM retargeting_pixels 
+        WHERE id = $1 AND is_active = true
+      `;
+      const result = await this.database.query(query, [pixelId]);
+      return result.rows[0] || null;
+    } catch (error) {
+      this.logger.error('Failed to get retargeting pixel by ID:', error);
+      throw new DatabaseError('Failed to retrieve retargeting pixel');
+    }
+  }
+
+  async getUserRetargetingPixels(userId: string, limit: number = 20, offset: number = 0): Promise<any[]> {
+    try {
+      const query = `
+        SELECT * FROM retargeting_pixels 
+        WHERE user_id = $1 AND is_active = true
+        ORDER BY created_at DESC
+        LIMIT $2 OFFSET $3
+      `;
+      const result = await this.database.query(query, [userId, limit, offset]);
+      return result.rows;
+    } catch (error) {
+      this.logger.error('Failed to get user retargeting pixels:', error);
+      throw new DatabaseError('Failed to retrieve user retargeting pixels');
+    }
+  }
+
+  async updateRetargetingPixel(pixelId: string, updates: any): Promise<any> {
+    try {
+      const setFields = [];
+      const values = [];
+      let paramIndex = 1;
+
+      for (const [key, value] of Object.entries(updates)) {
+        if (key === 'customParameters' && value) {
+          setFields.push(`custom_parameters = $${paramIndex}`);
+          values.push(JSON.stringify(value));
+        } else if (value !== undefined) {
+          setFields.push(`${this.camelToSnake(key)} = $${paramIndex}`);
+          values.push(value);
+        }
+        paramIndex++;
+      }
+
+      if (setFields.length === 0) {
+        throw new Error('No fields to update');
+      }
+
+      values.push(pixelId);
+
+      const query = `
+        UPDATE retargeting_pixels 
+        SET ${setFields.join(', ')}, updated_at = NOW()
+        WHERE id = $${paramIndex}
+        RETURNING *
+      `;
+
+      const result = await this.database.query(query, values);
+      return result.rows[0];
+    } catch (error) {
+      this.logger.error('Failed to update retargeting pixel:', error);
+      throw new DatabaseError('Failed to update retargeting pixel');
+    }
+  }
+
+  async deleteRetargetingPixel(pixelId: string): Promise<boolean> {
+    try {
+      const query = `
+        UPDATE retargeting_pixels 
+        SET is_active = false, updated_at = NOW()
+        WHERE id = $1
+      `;
+      const result = await this.database.query(query, [pixelId]);
+      return result.rowCount ? result.rowCount > 0 : false;
+    } catch (error) {
+      this.logger.error('Failed to delete retargeting pixel:', error);
+      throw new DatabaseError('Failed to delete retargeting pixel');
+    }
+  }
+
+  async incrementPixelFireCount(pixelId: string): Promise<void> {
+    try {
+      const query = `
+        UPDATE retargeting_pixels 
+        SET fires_count = fires_count + 1, last_fired_at = NOW()
+        WHERE id = $1
+      `;
+      await this.database.query(query, [pixelId]);
+    } catch (error) {
+      this.logger.error('Failed to increment pixel fire count:', error);
+      throw new DatabaseError('Failed to increment pixel fire count');
+    }
+  }
+
+  // Retargeting pixel events methods
+  async createRetargetingPixelEvent(event: any): Promise<any> {
+    try {
+      const query = `
+        INSERT INTO retargeting_pixel_events (
+          id, pixel_id, qr_code_id, campaign_id, event_type,
+          event_value, event_currency, session_id, user_fingerprint,
+          ip_address, user_agent, referrer_url, page_url,
+          platform_event_id, platform_response, country, region, city, fired_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
+        ) RETURNING *
+      `;
+
+      const values = [
+        event.id,
+        event.pixelId,
+        event.qrCodeId,
+        event.campaignId,
+        event.eventType,
+        event.eventValue,
+        event.eventCurrency,
+        event.sessionId,
+        event.userFingerprint,
+        event.ipAddress,
+        event.userAgent,
+        event.referrerUrl,
+        event.pageUrl,
+        event.platformEventId,
+        event.platformResponse ? JSON.stringify(event.platformResponse) : null,
+        event.country,
+        event.region,
+        event.city,
+        event.firedAt
+      ];
+
+      const result = await this.database.query(query, values);
+      return result.rows[0];
+    } catch (error) {
+      this.logger.error('Failed to create retargeting pixel event:', error);
+      throw new DatabaseError('Failed to create retargeting pixel event');
+    }
+  }
+
+  async getRetargetingPixelEvents(pixelId: string, limit: number = 100, offset: number = 0): Promise<any[]> {
+    try {
+      const query = `
+        SELECT * FROM retargeting_pixel_events 
+        WHERE pixel_id = $1
+        ORDER BY fired_at DESC
+        LIMIT $2 OFFSET $3
+      `;
+      const result = await this.database.query(query, [pixelId, limit, offset]);
+      return result.rows;
+    } catch (error) {
+      this.logger.error('Failed to get retargeting pixel events:', error);
+      throw new DatabaseError('Failed to retrieve retargeting pixel events');
+    }
+  }
+
+  async updateRetargetingPixelEvent(eventId: string, updates: any): Promise<any> {
+    try {
+      const setFields = [];
+      const values = [];
+      let paramIndex = 1;
+
+      for (const [key, value] of Object.entries(updates)) {
+        if (key === 'platformResponse' && value) {
+          setFields.push(`platform_response = $${paramIndex}`);
+          values.push(JSON.stringify(value));
+        } else if (value !== undefined) {
+          setFields.push(`${this.camelToSnake(key)} = $${paramIndex}`);
+          values.push(value);
+        }
+        paramIndex++;
+      }
+
+      if (setFields.length === 0) {
+        throw new Error('No fields to update');
+      }
+
+      values.push(eventId);
+
+      const query = `
+        UPDATE retargeting_pixel_events 
+        SET ${setFields.join(', ')}
+        WHERE id = $${paramIndex}
+        RETURNING *
+      `;
+
+      const result = await this.database.query(query, values);
+      return result.rows[0];
+    } catch (error) {
+      this.logger.error('Failed to update retargeting pixel event:', error);
+      throw new DatabaseError('Failed to update retargeting pixel event');
+    }
+  }
+
+  // Campaign analytics methods
+  async createCampaignAnalytics(analytics: any): Promise<any> {
+    try {
+      const query = `
+        INSERT INTO campaign_analytics (
+          id, campaign_id, analytics_date, impressions, clicks, unique_clicks,
+          scans, unique_scans, conversions, conversion_value, click_through_rate,
+          conversion_rate, cost_per_click, cost_per_conversion, return_on_ad_spend,
+          top_utm_source, top_utm_medium, top_utm_content, top_country, top_region,
+          top_device_type, mobile_percentage, peak_hour, peak_day_of_week,
+          created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+          $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26
+        )
+        ON CONFLICT (campaign_id, analytics_date) 
+        DO UPDATE SET
+          impressions = EXCLUDED.impressions,
+          clicks = EXCLUDED.clicks,
+          unique_clicks = EXCLUDED.unique_clicks,
+          scans = EXCLUDED.scans,
+          unique_scans = EXCLUDED.unique_scans,
+          conversions = EXCLUDED.conversions,
+          conversion_value = EXCLUDED.conversion_value,
+          click_through_rate = EXCLUDED.click_through_rate,
+          conversion_rate = EXCLUDED.conversion_rate,
+          cost_per_click = EXCLUDED.cost_per_click,
+          cost_per_conversion = EXCLUDED.cost_per_conversion,
+          return_on_ad_spend = EXCLUDED.return_on_ad_spend,
+          top_utm_source = EXCLUDED.top_utm_source,
+          top_utm_medium = EXCLUDED.top_utm_medium,
+          top_utm_content = EXCLUDED.top_utm_content,
+          top_country = EXCLUDED.top_country,
+          top_region = EXCLUDED.top_region,
+          top_device_type = EXCLUDED.top_device_type,
+          mobile_percentage = EXCLUDED.mobile_percentage,
+          peak_hour = EXCLUDED.peak_hour,
+          peak_day_of_week = EXCLUDED.peak_day_of_week,
+          updated_at = EXCLUDED.updated_at
+        RETURNING *
+      `;
+
+      const values = [
+        analytics.id,
+        analytics.campaignId,
+        analytics.analyticsDate,
+        analytics.impressions || 0,
+        analytics.clicks || 0,
+        analytics.uniqueClicks || 0,
+        analytics.scans || 0,
+        analytics.uniqueScans || 0,
+        analytics.conversions || 0,
+        analytics.conversionValue || 0,
+        analytics.clickThroughRate || 0,
+        analytics.conversionRate || 0,
+        analytics.costPerClick || 0,
+        analytics.costPerConversion || 0,
+        analytics.returnOnAdSpend || 0,
+        analytics.topUtmSource,
+        analytics.topUtmMedium,
+        analytics.topUtmContent,
+        analytics.topCountry,
+        analytics.topRegion,
+        analytics.topDeviceType,
+        analytics.mobilePercentage || 0,
+        analytics.peakHour,
+        analytics.peakDayOfWeek,
+        analytics.createdAt,
+        analytics.updatedAt
+      ];
+
+      const result = await this.database.query(query, values);
+      return result.rows[0];
+    } catch (error) {
+      this.logger.error('Failed to create campaign analytics:', error);
+      throw new DatabaseError('Failed to create campaign analytics');
+    }
+  }
+
+  async getCampaignAnalytics(campaignId: string, startDate?: Date, endDate?: Date): Promise<any[]> {
+    try {
+      let query = `
+        SELECT * FROM campaign_analytics 
+        WHERE campaign_id = $1
+      `;
+      const params = [campaignId];
+
+      if (startDate) {
+        query += ` AND analytics_date >= $${params.length + 1}`;
+        params.push(startDate.toISOString().split('T')[0]); // Convert to date string
+      }
+
+      if (endDate) {
+        query += ` AND analytics_date <= $${params.length + 1}`;
+        params.push(endDate.toISOString().split('T')[0]); // Convert to date string
+      }
+
+      query += ` ORDER BY analytics_date DESC`;
+
+      const result = await this.database.query(query, params);
+      return result.rows;
+    } catch (error) {
+      this.logger.error('Failed to get campaign analytics:', error);
+      throw new DatabaseError('Failed to retrieve campaign analytics');
+    }
+  }
+
+  async updateCampaignAnalytics(campaignId: string, date: Date, updates: any): Promise<any> {
+    try {
+      const setFields = [];
+      const values = [];
+      let paramIndex = 1;
+
+      for (const [key, value] of Object.entries(updates)) {
+        if (value !== undefined) {
+          setFields.push(`${this.camelToSnake(key)} = $${paramIndex}`);
+          values.push(value);
+          paramIndex++;
+        }
+      }
+
+      if (setFields.length === 0) {
+        throw new Error('No fields to update');
+      }
+
+      values.push(campaignId);
+      values.push(date);
+
+      const query = `
+        UPDATE campaign_analytics 
+        SET ${setFields.join(', ')}, updated_at = NOW()
+        WHERE campaign_id = $${paramIndex} AND analytics_date = $${paramIndex + 1}
+        RETURNING *
+      `;
+
+      const result = await this.database.query(query, values);
+      return result.rows[0];
+    } catch (error) {
+      this.logger.error('Failed to update campaign analytics:', error);
+      throw new DatabaseError('Failed to update campaign analytics');
+    }
+  }
+
+  // Campaign conversion attribution methods
+  async createCampaignConversionAttribution(attribution: any): Promise<any> {
+    try {
+      const query = `
+        INSERT INTO campaign_conversion_attribution (
+          id, campaign_id, conversion_event_id, qr_code_id, utm_tracking_id,
+          attribution_model, attribution_weight, touch_timestamp, conversion_timestamp,
+          time_to_conversion, attributed_value, attributed_currency, touch_point,
+          conversion_path, created_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+        ) RETURNING *
+      `;
+
+      const values = [
+        attribution.id,
+        attribution.campaignId,
+        attribution.conversionEventId,
+        attribution.qrCodeId,
+        attribution.utmTrackingId,
+        attribution.attributionModel,
+        attribution.attributionWeight || 1.0,
+        attribution.touchTimestamp,
+        attribution.conversionTimestamp,
+        attribution.timeToConversion,
+        attribution.attributedValue,
+        attribution.attributedCurrency,
+        attribution.touchPoint,
+        attribution.conversionPath,
+        attribution.createdAt
+      ];
+
+      const result = await this.database.query(query, values);
+      return result.rows[0];
+    } catch (error) {
+      this.logger.error('Failed to create campaign conversion attribution:', error);
+      throw new DatabaseError('Failed to create campaign conversion attribution');
+    }
+  }
+
+  async getCampaignConversionAttributions(campaignId: string, startDate?: Date, endDate?: Date): Promise<any[]> {
+    try {
+      let query = `
+        SELECT * FROM campaign_conversion_attribution 
+        WHERE campaign_id = $1
+      `;
+      const params = [campaignId];
+
+      if (startDate) {
+        query += ` AND conversion_timestamp >= $${params.length + 1}`;
+        params.push(startDate.toISOString());
+      }
+
+      if (endDate) {
+        query += ` AND conversion_timestamp <= $${params.length + 1}`;
+        params.push(endDate.toISOString());
+      }
+
+      query += ` ORDER BY conversion_timestamp DESC`;
+
+      const result = await this.database.query(query, params);
+      return result.rows;
+    } catch (error) {
+      this.logger.error('Failed to get campaign conversion attributions:', error);
+      throw new DatabaseError('Failed to retrieve campaign conversion attributions');
+    }
+  }
 }

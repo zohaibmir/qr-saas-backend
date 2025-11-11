@@ -23,6 +23,10 @@ import { AnalyticsRepository } from './repositories/analytics.repository';
 import { AnalyticsService } from './services/analytics.service';
 import { HealthChecker } from './services/health-checker.service';
 import { AdvancedAnalyticsRoutes } from './routes/advanced-analytics.routes';
+import { MarketingRoutes } from './routes/marketing.routes';
+import { CampaignManagementService } from './services/campaign-management.service';
+import { UTMTrackingService } from './services/utm-tracking.service';
+import { RetargetingPixelService } from './services/retargeting-pixel.service';
 
 dotenv.config({ path: '../../.env' });
 
@@ -57,8 +61,18 @@ class AnalyticsServiceApplication {
       
       // Register services
       const analyticsService = new AnalyticsService(analyticsRepository, this.logger);
+      
+      // Initialize marketing services
+      const campaignService = new CampaignManagementService(analyticsRepository, this.logger);
+      const utmService = new UTMTrackingService(analyticsRepository, this.logger);
+      const pixelService = new RetargetingPixelService(analyticsRepository, this.logger);
+      
       const healthChecker = new HealthChecker(this.logger, this.container);
+      
       this.container.register('analyticsService', analyticsService);
+      this.container.register('campaignService', campaignService);
+      this.container.register('utmService', utmService);
+      this.container.register('pixelService', pixelService);
       this.container.register('healthChecker', healthChecker);
       
       this.logger.info('Clean architecture dependencies initialized', {
@@ -158,6 +172,9 @@ class AnalyticsServiceApplication {
 
     // Advanced Analytics routes
     this.setupAdvancedAnalyticsRoutes(analyticsService);
+    
+    // Marketing routes
+    this.setupMarketingRoutes();
 
     // 404 handler
     this.app.use('*', (req, res) => {
@@ -558,6 +575,23 @@ class AnalyticsServiceApplication {
     this.app.use('/', advancedAnalyticsRoutes.getRouter());
     
     this.logger.info('Advanced analytics routes configured');
+  }
+
+  private setupMarketingRoutes(): void {
+    const campaignService = this.container.resolve('campaignService') as CampaignManagementService;
+    const utmService = this.container.resolve('utmService') as UTMTrackingService;
+    const pixelService = this.container.resolve('pixelService') as RetargetingPixelService;
+    
+    const marketingRoutes = new MarketingRoutes(
+      campaignService,
+      utmService, 
+      pixelService,
+      this.logger
+    );
+    
+    this.app.use('/marketing', marketingRoutes.getRouter());
+    
+    this.logger.info('Marketing routes configured at /marketing');
   }
 
   private setupErrorHandling(): void {
