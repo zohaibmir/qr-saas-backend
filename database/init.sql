@@ -3648,6 +3648,177 @@ INSERT INTO content_seo_settings (
 ) ON CONFLICT DO NOTHING;
 
 -- ===============================================
+-- ADMIN DASHBOARD SYSTEM
+-- Complete admin management with role-based access control
+-- ===============================================
+
+-- Admin role enumeration
+CREATE TYPE admin_role_enum AS ENUM (
+    'super_admin',      -- Full system access
+    'content_admin',    -- Content management only  
+    'analytics_admin',  -- Analytics and reports
+    'user_admin',       -- User management
+    'support_admin',    -- Customer support
+    'marketing_admin'   -- Marketing tools
+);
+
+-- Admin Users Table - Separate from regular users for security
+CREATE TABLE admin_users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
+    role admin_role_enum NOT NULL DEFAULT 'content_admin',
+    permissions JSONB DEFAULT '{}',
+    is_active BOOLEAN DEFAULT true,
+    last_login_at TIMESTAMP,
+    login_attempts INTEGER DEFAULT 0,
+    locked_until TIMESTAMP,
+    created_by UUID REFERENCES admin_users(id),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Admin Sessions Table - Secure session management
+CREATE TABLE admin_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    admin_user_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+    session_token VARCHAR(255) NOT NULL UNIQUE,
+    refresh_token VARCHAR(255) NOT NULL UNIQUE,
+    ip_address INET,
+    user_agent TEXT,
+    is_active BOOLEAN DEFAULT true,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Admin Activity Logs - Audit trail for all admin actions
+CREATE TABLE admin_activity_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    admin_user_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+    action VARCHAR(100) NOT NULL,
+    resource_type VARCHAR(100),
+    resource_id VARCHAR(255),
+    details JSONB,
+    ip_address INET,
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Admin Permissions - Granular permission system
+CREATE TABLE admin_permissions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    service VARCHAR(50) NOT NULL,
+    resource VARCHAR(100) NOT NULL,
+    action VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Admin Role Permissions - Map roles to permissions
+CREATE TABLE admin_role_permissions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    role admin_role_enum NOT NULL,
+    permission_id UUID NOT NULL REFERENCES admin_permissions(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(role, permission_id)
+);
+
+-- Performance indexes for admin tables
+CREATE INDEX idx_admin_users_email ON admin_users(email);
+CREATE INDEX idx_admin_users_role ON admin_users(role);
+CREATE INDEX idx_admin_users_active ON admin_users(is_active);
+CREATE INDEX idx_admin_sessions_token ON admin_sessions(session_token);
+CREATE INDEX idx_admin_sessions_admin_id ON admin_sessions(admin_user_id);
+CREATE INDEX idx_admin_sessions_active ON admin_sessions(is_active);
+CREATE INDEX idx_admin_activity_admin_id ON admin_activity_logs(admin_user_id);
+CREATE INDEX idx_admin_activity_created_at ON admin_activity_logs(created_at);
+CREATE INDEX idx_admin_activity_action ON admin_activity_logs(action);
+CREATE INDEX idx_admin_permissions_service ON admin_permissions(service);
+CREATE INDEX idx_admin_role_permissions_role ON admin_role_permissions(role);
+
+-- Default admin permissions
+INSERT INTO admin_permissions (name, description, service, resource, action) VALUES
+-- Content Service Permissions (Priority)
+('content.posts.create', 'Create blog posts and pages', 'content', 'posts', 'create'),
+('content.posts.read', 'View blog posts and pages', 'content', 'posts', 'read'),
+('content.posts.update', 'Edit blog posts and pages', 'content', 'posts', 'update'),
+('content.posts.delete', 'Delete blog posts and pages', 'content', 'posts', 'delete'),
+('content.posts.publish', 'Publish and unpublish content', 'content', 'posts', 'publish'),
+('content.media.manage', 'Manage media library', 'content', 'media', 'manage'),
+('content.categories.manage', 'Manage content categories', 'content', 'categories', 'manage'),
+('content.tags.manage', 'Manage content tags', 'content', 'tags', 'manage'),
+('content.comments.manage', 'Moderate comments', 'content', 'comments', 'manage'),
+('content.seo.manage', 'Manage SEO settings', 'content', 'seo', 'manage'),
+
+-- User Service Permissions (Secondary priority)
+('users.read', 'View user accounts', 'user', 'users', 'read'),
+('users.update', 'Edit user accounts', 'user', 'users', 'update'),
+('users.delete', 'Delete user accounts', 'user', 'users', 'delete'),
+('users.subscriptions.manage', 'Manage user subscriptions', 'user', 'subscriptions', 'manage'),
+('users.payments.read', 'View payment information', 'user', 'payments', 'read'),
+('users.support', 'Provide user support', 'user', 'support', 'manage'),
+
+-- Analytics Permissions
+('analytics.read', 'View analytics data', 'analytics', 'reports', 'read'),
+('analytics.export', 'Export analytics data', 'analytics', 'reports', 'export'),
+('analytics.super_admin', 'View super admin analytics', 'analytics', 'super_admin', 'read'),
+
+-- QR Service Permissions
+('qr.read', 'View QR codes', 'qr', 'codes', 'read'),
+('qr.manage', 'Manage QR codes', 'qr', 'codes', 'manage'),
+('qr.bulk.manage', 'Manage bulk QR operations', 'qr', 'bulk', 'manage'),
+('qr.categories.manage', 'Manage QR categories', 'qr', 'categories', 'manage'),
+
+-- System & Admin Permissions
+('system.settings.read', 'View system settings', 'system', 'settings', 'read'),
+('system.settings.manage', 'Manage system settings', 'system', 'settings', 'manage'),
+('admin.users.manage', 'Manage admin users', 'admin', 'users', 'manage'),
+('admin.logs.read', 'View admin activity logs', 'admin', 'logs', 'read'),
+('admin.dashboard.access', 'Access admin dashboard', 'admin', 'dashboard', 'access');
+
+-- Map permissions to roles
+-- Super Admin gets all permissions
+INSERT INTO admin_role_permissions (role, permission_id)
+SELECT 'super_admin', id FROM admin_permissions;
+
+-- Content Admin gets content-related permissions
+INSERT INTO admin_role_permissions (role, permission_id)
+SELECT 'content_admin', id FROM admin_permissions 
+WHERE name LIKE 'content.%' OR name = 'admin.dashboard.access';
+
+-- Analytics Admin gets analytics permissions
+INSERT INTO admin_role_permissions (role, permission_id)
+SELECT 'analytics_admin', id FROM admin_permissions 
+WHERE name LIKE 'analytics.%' OR name = 'admin.dashboard.access';
+
+-- User Admin gets user management permissions
+INSERT INTO admin_role_permissions (role, permission_id)
+SELECT 'user_admin', id FROM admin_permissions 
+WHERE name LIKE 'users.%' OR name = 'admin.dashboard.access';
+
+-- Support Admin gets user support permissions
+INSERT INTO admin_role_permissions (role, permission_id)
+SELECT 'support_admin', id FROM admin_permissions 
+WHERE name IN ('users.read', 'users.support', 'qr.read', 'admin.dashboard.access');
+
+-- Marketing Admin gets marketing permissions
+INSERT INTO admin_role_permissions (role, permission_id)
+SELECT 'marketing_admin', id FROM admin_permissions 
+WHERE name LIKE 'analytics.%' OR name LIKE 'content.%' OR name = 'admin.dashboard.access';
+
+-- Create default super admin user (password: Admin@123456)
+-- Password hash for "Admin@123456" using bcrypt rounds 12
+INSERT INTO admin_users (email, password_hash, full_name, role, is_active) VALUES 
+('admin@qr-saas.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewSBcz/HXgO9mWoC', 'System Administrator', 'super_admin', true);
+
+-- Create default content admin user (password: Content@123456)
+-- Password hash for "Content@123456" using bcrypt rounds 12  
+INSERT INTO admin_users (email, password_hash, full_name, role, is_active) VALUES 
+('content@qr-saas.com', '$2b$12$XeA8vQp1zP5w9nJ2uC7fROL9KzN1hD6yP8qV3xW4nG5tA2sQ0mR7E', 'Content Administrator', 'content_admin', true);
+
+-- ===============================================
 -- DATABASE SCHEMA COMPLETE
 -- All features implemented:
 -- - Core QR SaaS Platform
@@ -3660,4 +3831,5 @@ INSERT INTO content_seo_settings (
 -- - E-commerce QR Service
 -- - MARKETING TOOLS SYSTEM
 -- - Content Management System
+-- - ADMIN DASHBOARD SYSTEM
 -- ===============================================
