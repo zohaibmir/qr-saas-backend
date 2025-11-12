@@ -137,7 +137,8 @@ class ApiGatewayApplication {
           'team-service': 'Team and organization management with member invitations',
           'landing-page-service': 'Landing page builder with A/B testing and forms',
           'payment-processing': 'Multi-provider payments: Swish (Swedish), Stripe, Klarna, PayPal',
-          'admin-dashboard-service': 'Admin authentication, content management, and dashboard APIs'
+          'admin-dashboard-service': 'Admin authentication, content management, and dashboard APIs',
+          'business-tools-service': 'Custom domains, white labeling, and GDPR compliance management'
         },
         database: 'PostgreSQL with complete persistence',
         architecture: 'Clean Architecture with SOLID principles',
@@ -355,6 +356,38 @@ class ApiGatewayApplication {
     
     this.app.all('/api/admin/*', async (req, res) => {
       await this.proxyRequest(req, res, 'admin-dashboard-service', '/api/admin', '/api');
+    });
+
+    // Business Tools routes - handle custom domains, GDPR, and white label features
+    this.app.all('/api/business/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'business-tools-service', '/api/business', '/api/v1');
+    });
+
+    // Specific Business Tools routes for better organization
+    this.app.all('/api/domains', async (req, res) => {
+      await this.proxyRequest(req, res, 'business-tools-service', '/api/domains', '/api/v1/domains');
+    });
+    
+    this.app.all('/api/domains/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'business-tools-service', '/api/domains', '/api/v1/domains');
+    });
+
+    // White Label routes
+    this.app.all('/api/white-label', async (req, res) => {
+      await this.proxyRequest(req, res, 'business-tools-service', '/api/white-label', '/api/v1/white-label');
+    });
+    
+    this.app.all('/api/white-label/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'business-tools-service', '/api/white-label', '/api/v1/white-label');
+    });
+
+    // GDPR routes
+    this.app.all('/api/gdpr', async (req, res) => {
+      await this.proxyRequest(req, res, 'business-tools-service', '/api/gdpr', '/api/v1/gdpr');
+    });
+    
+    this.app.all('/api/gdpr/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'business-tools-service', '/api/gdpr', '/api/v1/gdpr');
     });
 
     // Public landing page access (special route)

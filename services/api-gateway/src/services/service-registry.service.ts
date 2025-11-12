@@ -77,6 +77,12 @@ export class ServiceRegistry implements IServiceRegistry {
         url: process.env.ADMIN_DASHBOARD_SERVICE_URL || 'http://localhost:3013',
         healthPath: '/health',
         timeout: 5000
+      },
+      {
+        name: 'business-tools-service',
+        url: process.env.BUSINESS_TOOLS_SERVICE_URL || 'http://localhost:3014',
+        healthPath: '/health',
+        timeout: 5000
       }
     ];
 

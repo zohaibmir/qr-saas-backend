@@ -3,6 +3,7 @@ import { SwaggerDefinition } from 'swagger-jsdoc';
 import { bulkQRSchemas } from '../docs/bulk-qr-routes';
 import { paymentSchemas } from '../docs/payment-routes';
 import { ecommerceSchemas } from '../docs/ecommerce-swagger';
+import { businessToolsSchemas } from '../docs/business-tools-routes';
 
 const swaggerDefinition: SwaggerDefinition = {
   openapi: '3.0.0',
@@ -665,6 +666,7 @@ Import the included Postman collection for comprehensive API testing.
       ...bulkQRSchemas,
       ...paymentSchemas,
       ...ecommerceSchemas,
+      ...businessToolsSchemas,
       // Advanced QR Features Schemas
       QRContentRule: {
         type: 'object',
@@ -1559,6 +1561,18 @@ Import the included Postman collection for comprehensive API testing.
     {
       name: 'Marketing Tools', 
       description: 'Comprehensive marketing tools including campaign management, UTM parameter tracking, conversion tracking, and retargeting pixel management'
+    },
+    {
+      name: 'Custom Domains',
+      description: 'Custom domain management, DNS verification, and SSL certificate provisioning'
+    },
+    {
+      name: 'White Label',
+      description: 'White label branding, customization, and brand asset management'
+    },
+    {
+      name: 'GDPR',
+      description: 'GDPR compliance, data protection, consent management, and privacy controls'
     }
   ]
 };
@@ -1577,6 +1591,7 @@ const options = {
     './src/docs/landing-page-routes.ts',
     './src/docs/ecommerce-swagger.ts',
     './src/docs/content-routes.ts',
+    './src/docs/business-tools-routes.ts',
     '../analytics-service/src/docs/marketing-routes.ts',
     './src/index.ts',
     './src/app.ts'

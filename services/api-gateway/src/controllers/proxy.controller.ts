@@ -109,6 +109,30 @@ export class ProxyController {
         targetService: 'content-service',
         pathRewrite: '/content',
         requiresAuth: false // Mix of public and private endpoints, handled by service
+      },
+      {
+        path: '/api/business',
+        targetService: 'business-tools-service',
+        pathRewrite: '',
+        requiresAuth: false // Mix of public and private endpoints, handled by service
+      },
+      {
+        path: '/api/domains',
+        targetService: 'business-tools-service',
+        pathRewrite: '',
+        requiresAuth: true // Domain management requires authentication
+      },
+      {
+        path: '/api/white-label',
+        targetService: 'business-tools-service',
+        pathRewrite: '',
+        requiresAuth: true // White labeling requires authentication
+      },
+      {
+        path: '/api/gdpr',
+        targetService: 'business-tools-service',
+        pathRewrite: '',
+        requiresAuth: true // GDPR operations require authentication
       }
     ];
   }

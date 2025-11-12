@@ -3819,6 +3819,269 @@ INSERT INTO admin_users (email, password_hash, full_name, role, is_active) VALUE
 ('content@qr-saas.com', '$2b$12$XeA8vQp1zP5w9nJ2uC7fROL9KzN1hD6yP8qV3xW4nG5tA2sQ0mR7E', 'Content Administrator', 'content_admin', true);
 
 -- ===============================================
+-- BUSINESS TOOLS SYSTEM SCHEMA
+-- Advanced business features for enterprise customers
+-- ===============================================
+
+-- Custom Domains table
+CREATE TABLE IF NOT EXISTS custom_domains (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+    domain VARCHAR(255) NOT NULL UNIQUE,
+    subdomain VARCHAR(100),
+    full_domain VARCHAR(355) NOT NULL UNIQUE,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending', 'verifying', 'active', 'failed', 'suspended'
+    verification_method VARCHAR(20) NOT NULL DEFAULT 'dns', -- 'dns', 'http', 'email'
+    verification_token VARCHAR(255) NOT NULL,
+    verification_value VARCHAR(500),
+    verified_at TIMESTAMP WITH TIME ZONE,
+    ssl_status VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending', 'issued', 'active', 'failed', 'expired'
+    ssl_certificate_id VARCHAR(255),
+    ssl_issued_at TIMESTAMP WITH TIME ZONE,
+    ssl_expires_at TIMESTAMP WITH TIME ZONE,
+    auto_renew_ssl BOOLEAN NOT NULL DEFAULT true,
+    redirect_settings JSONB DEFAULT '{}',
+    custom_headers JSONB DEFAULT '{}',
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Domain Verification Records
+CREATE TABLE IF NOT EXISTS domain_verifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    domain_id UUID NOT NULL REFERENCES custom_domains(id) ON DELETE CASCADE,
+    verification_type VARCHAR(20) NOT NULL, -- 'dns_txt', 'dns_cname', 'http_file', 'email_click'
+    record_name VARCHAR(500),
+    record_value VARCHAR(1000),
+    expected_value VARCHAR(1000),
+    actual_value VARCHAR(1000),
+    verification_status VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending', 'success', 'failed'
+    last_checked_at TIMESTAMP WITH TIME ZONE,
+    error_message TEXT,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    max_attempts INTEGER NOT NULL DEFAULT 10,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- SSL Certificates table
+CREATE TABLE IF NOT EXISTS ssl_certificates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    domain_id UUID NOT NULL REFERENCES custom_domains(id) ON DELETE CASCADE,
+    provider VARCHAR(50) NOT NULL DEFAULT 'letsencrypt', -- 'letsencrypt', 'custom', 'cloudflare'
+    certificate_data TEXT,
+    private_key_data TEXT, -- Encrypted
+    certificate_chain TEXT,
+    serial_number VARCHAR(255),
+    issued_at TIMESTAMP WITH TIME ZONE,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    auto_renew BOOLEAN NOT NULL DEFAULT true,
+    renewal_attempts INTEGER DEFAULT 0,
+    last_renewal_attempt TIMESTAMP WITH TIME ZONE,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending', 'active', 'expired', 'revoked', 'failed'
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- White Label Configurations
+CREATE TABLE IF NOT EXISTS white_label_configs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+    config_name VARCHAR(200) NOT NULL,
+    logo_url VARCHAR(500),
+    logo_dark_url VARCHAR(500), -- Dark theme logo
+    favicon_url VARCHAR(500),
+    primary_color VARCHAR(7) NOT NULL DEFAULT '#3B82F6',
+    secondary_color VARCHAR(7) NOT NULL DEFAULT '#1E40AF',
+    accent_color VARCHAR(7) NOT NULL DEFAULT '#F59E0B',
+    background_color VARCHAR(7) NOT NULL DEFAULT '#FFFFFF',
+    text_color VARCHAR(7) NOT NULL DEFAULT '#111827',
+    company_name VARCHAR(200),
+    support_email VARCHAR(255),
+    support_phone VARCHAR(50),
+    support_url VARCHAR(500),
+    terms_url VARCHAR(500),
+    privacy_url VARCHAR(500),
+    custom_css TEXT,
+    custom_js TEXT,
+    branding_settings JSONB DEFAULT '{}',
+    email_settings JSONB DEFAULT '{}', -- Custom email templates
+    domain_settings JSONB DEFAULT '{}',
+    feature_flags JSONB DEFAULT '{}',
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Brand Assets table
+CREATE TABLE IF NOT EXISTS brand_assets (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    white_label_config_id UUID NOT NULL REFERENCES white_label_configs(id) ON DELETE CASCADE,
+    asset_type VARCHAR(50) NOT NULL, -- 'logo', 'favicon', 'background', 'email_header', 'custom'
+    asset_name VARCHAR(200) NOT NULL,
+    file_url VARCHAR(500) NOT NULL,
+    file_size INTEGER,
+    mime_type VARCHAR(100),
+    dimensions JSONB, -- {width: number, height: number}
+    alt_text VARCHAR(500),
+    usage_context JSONB DEFAULT '{}', -- Where this asset is used
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- GDPR Compliance Management
+CREATE TABLE IF NOT EXISTS gdpr_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+    request_type VARCHAR(30) NOT NULL, -- 'export', 'delete', 'rectify', 'restrict', 'object', 'portability'
+    status VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending', 'processing', 'completed', 'rejected', 'expired'
+    request_details JSONB DEFAULT '{}',
+    requested_data JSONB DEFAULT '{}', -- What data is being requested
+    processed_data JSONB DEFAULT '{}', -- Results of the request
+    requester_email VARCHAR(255) NOT NULL,
+    requester_ip_address INET,
+    verification_token VARCHAR(255),
+    verified_at TIMESTAMP WITH TIME ZONE,
+    processing_started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    expiry_date TIMESTAMP WITH TIME ZONE, -- Legal deadline
+    admin_notes TEXT,
+    rejection_reason TEXT,
+    file_exports JSONB DEFAULT '[]', -- Array of exported file URLs
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- User Consent Management
+CREATE TABLE IF NOT EXISTS user_consents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    consent_type VARCHAR(100) NOT NULL, -- 'cookies', 'marketing', 'analytics', 'data_processing', 'third_party'
+    consent_version VARCHAR(50) NOT NULL DEFAULT '1.0',
+    consent_given BOOLEAN NOT NULL,
+    consent_text TEXT, -- The actual consent text shown to user
+    legal_basis VARCHAR(100), -- 'consent', 'legitimate_interest', 'contract', 'legal_obligation'
+    source VARCHAR(100), -- 'registration', 'cookie_banner', 'privacy_dashboard', 'admin'
+    ip_address INET,
+    user_agent TEXT,
+    consent_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    withdrawal_date TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN NOT NULL DEFAULT true
+);
+
+-- Privacy Settings per User
+CREATE TABLE IF NOT EXISTS user_privacy_settings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    analytics_tracking BOOLEAN NOT NULL DEFAULT true,
+    marketing_emails BOOLEAN NOT NULL DEFAULT true,
+    third_party_sharing BOOLEAN NOT NULL DEFAULT false,
+    data_retention_days INTEGER DEFAULT 365,
+    cookie_preferences JSONB DEFAULT '{}',
+    notification_preferences JSONB DEFAULT '{}',
+    export_format VARCHAR(20) DEFAULT 'json', -- 'json', 'csv', 'pdf'
+    last_updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_by VARCHAR(50) DEFAULT 'user', -- 'user', 'admin', 'system'
+    UNIQUE(user_id)
+);
+
+-- Data Processing Activities Log
+CREATE TABLE IF NOT EXISTS data_processing_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    activity_type VARCHAR(100) NOT NULL, -- 'data_access', 'data_export', 'data_delete', 'data_update'
+    data_categories JSONB NOT NULL DEFAULT '[]', -- Array of data types accessed/processed
+    purpose VARCHAR(200) NOT NULL,
+    legal_basis VARCHAR(100) NOT NULL,
+    processor VARCHAR(100), -- Service/system that processed the data
+    processing_details JSONB DEFAULT '{}',
+    retention_period INTEGER, -- Days
+    automated_decision BOOLEAN DEFAULT false,
+    third_party_transfers JSONB DEFAULT '[]',
+    admin_user_id UUID REFERENCES admin_users(id) ON DELETE SET NULL,
+    ip_address INET,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- GDPR Audit Trail
+CREATE TABLE IF NOT EXISTS gdpr_audit_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    gdpr_request_id UUID REFERENCES gdpr_requests(id) ON DELETE CASCADE,
+    action VARCHAR(100) NOT NULL, -- 'created', 'verified', 'processing_started', 'data_exported', 'completed'
+    performed_by VARCHAR(100), -- 'user', 'admin', 'system'
+    admin_user_id UUID REFERENCES admin_users(id) ON DELETE SET NULL,
+    action_details JSONB DEFAULT '{}',
+    ip_address INET,
+    user_agent TEXT,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- ===============================================
+-- BUSINESS TOOLS INDEXES
+-- ===============================================
+
+-- Custom Domains indexes
+CREATE INDEX IF NOT EXISTS idx_custom_domains_user_id ON custom_domains(user_id);
+CREATE INDEX IF NOT EXISTS idx_custom_domains_organization_id ON custom_domains(organization_id);
+CREATE INDEX IF NOT EXISTS idx_custom_domains_full_domain ON custom_domains(full_domain);
+CREATE INDEX IF NOT EXISTS idx_custom_domains_status ON custom_domains(status);
+CREATE INDEX IF NOT EXISTS idx_custom_domains_ssl_status ON custom_domains(ssl_status);
+CREATE INDEX IF NOT EXISTS idx_custom_domains_active ON custom_domains(is_active);
+
+-- Domain Verification indexes
+CREATE INDEX IF NOT EXISTS idx_domain_verifications_domain_id ON domain_verifications(domain_id);
+CREATE INDEX IF NOT EXISTS idx_domain_verifications_status ON domain_verifications(verification_status);
+CREATE INDEX IF NOT EXISTS idx_domain_verifications_type ON domain_verifications(verification_type);
+
+-- SSL Certificates indexes
+CREATE INDEX IF NOT EXISTS idx_ssl_certificates_domain_id ON ssl_certificates(domain_id);
+CREATE INDEX IF NOT EXISTS idx_ssl_certificates_status ON ssl_certificates(status);
+CREATE INDEX IF NOT EXISTS idx_ssl_certificates_expires_at ON ssl_certificates(expires_at);
+CREATE INDEX IF NOT EXISTS idx_ssl_certificates_auto_renew ON ssl_certificates(auto_renew) WHERE auto_renew = true;
+
+-- White Label Config indexes
+CREATE INDEX IF NOT EXISTS idx_white_label_configs_user_id ON white_label_configs(user_id);
+CREATE INDEX IF NOT EXISTS idx_white_label_configs_organization_id ON white_label_configs(organization_id);
+CREATE INDEX IF NOT EXISTS idx_white_label_configs_active ON white_label_configs(is_active);
+
+-- Brand Assets indexes
+CREATE INDEX IF NOT EXISTS idx_brand_assets_config_id ON brand_assets(white_label_config_id);
+CREATE INDEX IF NOT EXISTS idx_brand_assets_type ON brand_assets(asset_type);
+CREATE INDEX IF NOT EXISTS idx_brand_assets_active ON brand_assets(is_active);
+
+-- GDPR Request indexes
+CREATE INDEX IF NOT EXISTS idx_gdpr_requests_user_id ON gdpr_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_gdpr_requests_type ON gdpr_requests(request_type);
+CREATE INDEX IF NOT EXISTS idx_gdpr_requests_status ON gdpr_requests(status);
+CREATE INDEX IF NOT EXISTS idx_gdpr_requests_email ON gdpr_requests(requester_email);
+CREATE INDEX IF NOT EXISTS idx_gdpr_requests_expiry ON gdpr_requests(expiry_date);
+CREATE INDEX IF NOT EXISTS idx_gdpr_requests_created_at ON gdpr_requests(created_at DESC);
+
+-- User Consent indexes
+CREATE INDEX IF NOT EXISTS idx_user_consents_user_id ON user_consents(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_consents_type ON user_consents(consent_type);
+CREATE INDEX IF NOT EXISTS idx_user_consents_active ON user_consents(is_active);
+CREATE INDEX IF NOT EXISTS idx_user_consents_date ON user_consents(consent_date DESC);
+
+-- Privacy Settings indexes
+CREATE INDEX IF NOT EXISTS idx_user_privacy_settings_user_id ON user_privacy_settings(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_privacy_settings_updated ON user_privacy_settings(last_updated_at DESC);
+
+-- Data Processing Logs indexes
+CREATE INDEX IF NOT EXISTS idx_data_processing_logs_user_id ON data_processing_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_data_processing_logs_activity ON data_processing_logs(activity_type);
+CREATE INDEX IF NOT EXISTS idx_data_processing_logs_created_at ON data_processing_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_data_processing_logs_processor ON data_processing_logs(processor);
+
+-- GDPR Audit logs indexes
+CREATE INDEX IF NOT EXISTS idx_gdpr_audit_logs_request_id ON gdpr_audit_logs(gdpr_request_id);
+CREATE INDEX IF NOT EXISTS idx_gdpr_audit_logs_action ON gdpr_audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_gdpr_audit_logs_timestamp ON gdpr_audit_logs(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_gdpr_audit_logs_admin_id ON gdpr_audit_logs(admin_user_id);
+
+-- ===============================================
 -- DATABASE SCHEMA COMPLETE
 -- All features implemented:
 -- - Core QR SaaS Platform
@@ -3832,4 +4095,5 @@ INSERT INTO admin_users (email, password_hash, full_name, role, is_active) VALUE
 -- - MARKETING TOOLS SYSTEM
 -- - Content Management System
 -- - ADMIN DASHBOARD SYSTEM
+-- - ADVANCED BUSINESS TOOLS SYSTEM
 -- ===============================================
