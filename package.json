@@ -29,7 +29,21 @@
     "jwt:verify": "node scripts/jwt-utility.js verify",
     "jwt:bulk": "node scripts/jwt-utility.js bulk",
     "jwt:web": "open scripts/jwt-generator.html",
-    "jwt:help": "node scripts/jwt-utility.js"
+    "jwt:help": "node scripts/jwt-utility.js",
+    
+    "streams:start": "./stream-manager.sh start",
+    "streams:stop": "./stream-manager.sh stop",
+    "streams:health": "./stream-manager.sh health",
+    "streams:topics": "./stream-manager.sh list-topics",
+    "streams:groups": "./stream-manager.sh list-groups",
+    "streams:ui": "open http://localhost:8080",
+    "streams:redis": "open http://localhost:8082",
+    "kafka:create-topic": "./stream-manager.sh create-topic",
+    "kafka:delete-topic": "./stream-manager.sh delete-topic",
+    "kafka:describe-topic": "./stream-manager.sh describe-topic",
+    "kafka:test-message": "./stream-manager.sh test-message",
+    "kafka:consume": "./stream-manager.sh consume",
+    "dev:with-streams": "npm run streams:start && npm run dev"
   },
   "keywords": [
     "qr-code",
