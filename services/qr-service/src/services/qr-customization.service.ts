@@ -69,6 +69,16 @@ export class QRCustomizationService implements IQRCustomizationService {
         allowGradients: false,
         allowEffects: false
       },
+      starter: {
+        maxSize: 400,
+        allowLogo: true,
+        allowFrames: false,
+        allowPatterns: ['square', 'rounded'],
+        allowEyePatterns: false,
+        allowTransparency: false,
+        allowGradients: false,
+        allowEffects: false
+      },
       pro: {
         maxSize: 500,
         allowLogo: true,

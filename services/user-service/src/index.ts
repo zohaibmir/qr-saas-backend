@@ -363,6 +363,95 @@ class UserServiceApplication {
       }
     });
 
+    // Forgot password route
+    this.app.post('/auth/forgot-password', async (req, res) => {
+      try {
+        const { email } = req.body;
+        
+        if (!email) {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'MISSING_EMAIL',
+              message: 'Email is required',
+              statusCode: 400
+            }
+          });
+        }
+
+        const result = await authService.forgotPassword(email);
+        
+        if (result.success) {
+          res.status(200).json({
+            success: true,
+            message: 'If an account with this email exists, a password reset link has been sent'
+          });
+        } else {
+          res.status(result.error?.statusCode || 400).json(result);
+        }
+      } catch (error) {
+        this.logger.error('Forgot password route error', { error });
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'FORGOT_PASSWORD_FAILED',
+            message: 'Password reset request failed',
+            statusCode: 500
+          }
+        });
+      }
+    });
+
+    // Reset password route
+    this.app.post('/auth/reset-password', async (req, res) => {
+      try {
+        const { token, newPassword } = req.body;
+        
+        if (!token || !newPassword) {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'MISSING_FIELDS',
+              message: 'Reset token and new password are required',
+              statusCode: 400
+            }
+          });
+        }
+
+        if (newPassword.length < 8) {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'WEAK_PASSWORD',
+              message: 'Password must be at least 8 characters long',
+              statusCode: 400
+            }
+          });
+        }
+
+        const result = await authService.resetPassword(token, newPassword);
+        
+        if (result.success) {
+          res.status(200).json({
+            success: true,
+            message: 'Password has been reset successfully'
+          });
+        } else {
+          res.status(result.error?.statusCode || 400).json(result);
+        }
+      } catch (error) {
+        this.logger.error('Reset password route error', { error });
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'RESET_PASSWORD_FAILED',
+            message: 'Password reset failed',
+            statusCode: 500
+          }
+        });
+      }
+    });
+
     this.logger.info('Authentication routes setup complete');
   }
 

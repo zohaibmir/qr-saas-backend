@@ -3,7 +3,7 @@ import { ILogger } from '../interfaces';
 
 interface PricingContext {
   quantity?: number;
-  userTier?: 'free' | 'pro' | 'business' | 'enterprise';
+  userTier?: 'free' | 'starter' | 'pro' | 'business' | 'enterprise';
   currentTime?: Date;
   location?: {
     country?: string;
@@ -280,7 +280,7 @@ export class PricingEngine {
       errors.push('Quantity condition value must be a number');
     }
     
-    if (condition.type === 'user_tier' && !['free', 'pro', 'business', 'enterprise'].includes(condition.value)) {
+    if (condition.type === 'user_tier' && !['free', 'starter', 'pro', 'business', 'enterprise'].includes(condition.value)) {
       errors.push('Invalid user tier value');
     }
     

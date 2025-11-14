@@ -4,6 +4,7 @@
 -- Delete existing test users first (if any)
 DELETE FROM users WHERE email IN (
     'free@test.com',
+    'starter@test.com',
     'pro@test.com', 
     'business@test.com',
     'enterprise@test.com',
@@ -36,6 +37,20 @@ INSERT INTO users (
     '{"theme": "light", "notifications": true}',
     '{"onboarded": true, "last_login": "2024-11-09T10:00:00Z"}',
     NOW() - INTERVAL '30 days',
+    NOW()
+),
+-- Starter Tier User
+(
+    uuid_generate_v4(),
+    'starter@test.com',
+    'startertester',
+    '$2b$10$X8Z1QZ8Z8Z8Z8Z8Z8Z8Z8Zu9BQNjjjjjjjjjjjjjjjjjjjjjjjjjjjj',
+    'Starter Tier User',
+    'starter',
+    true,
+    '{"theme": "light", "notifications": true}',
+    '{"onboarded": true, "last_login": "2024-11-09T09:45:00Z"}',
+    NOW() - INTERVAL '25 days',
     NOW()
 ),
 -- Pro Tier User  
@@ -106,6 +121,7 @@ SELECT
 FROM users 
 WHERE email IN (
     'free@test.com',
+    'starter@test.com',
     'pro@test.com', 
     'business@test.com',
     'enterprise@test.com',
@@ -118,7 +134,7 @@ ORDER BY subscription_tier;
 WITH test_user_ids AS (
     SELECT id, email, subscription_tier 
     FROM users 
-    WHERE email IN ('free@test.com', 'pro@test.com', 'business@test.com', 'enterprise@test.com')
+    WHERE email IN ('free@test.com', 'starter@test.com', 'pro@test.com', 'business@test.com', 'enterprise@test.com')
 )
 INSERT INTO qr_codes (
     id,

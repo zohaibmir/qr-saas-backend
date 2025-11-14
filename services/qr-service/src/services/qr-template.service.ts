@@ -268,9 +268,10 @@ export class QRTemplateService implements IQRTemplateService {
   getTemplatesByTier(tier: SubscriptionTier): QRTemplate[] {
     const tierHierarchy: Record<SubscriptionTier, number> = {
       free: 0,
-      pro: 1,
-      business: 2,
-      enterprise: 3
+      starter: 1,
+      pro: 2,
+      business: 3,
+      enterprise: 4
     };
 
     const userTierLevel = tierHierarchy[tier];

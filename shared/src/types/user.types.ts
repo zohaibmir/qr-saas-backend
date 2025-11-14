@@ -3,7 +3,7 @@ export interface User {
   email: string;
   password?: string; // Optional for responses, required for creation
   name: string;
-  subscriptionTier: 'free' | 'pro' | 'business' | 'enterprise';
+  subscriptionTier: 'free' | 'starter' | 'pro' | 'business' | 'enterprise';
   isEmailVerified: boolean;
   isActive: boolean; // Added for auth service
   createdAt: Date;

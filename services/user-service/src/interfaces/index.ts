@@ -32,7 +32,7 @@ export interface User {
   username: string;
   password?: string; // Optional for responses, required for creation
   fullName?: string;
-  subscription: 'free' | 'pro' | 'business' | 'enterprise';
+  subscription: 'free' | 'starter' | 'pro' | 'business' | 'enterprise';
   isEmailVerified: boolean;
   isActive: boolean; // Added for auth service
   avatar?: string;
@@ -61,7 +61,7 @@ export interface CreateUserRequest {
   username: string;
   password: string;
   fullName?: string;
-  subscription?: 'free' | 'pro' | 'business' | 'enterprise';
+  subscription?: 'free' | 'starter' | 'pro' | 'business' | 'enterprise';
 }
 
 export interface LoginRequest {

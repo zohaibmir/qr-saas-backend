@@ -464,7 +464,7 @@
  *         name: x-subscription-tier
  *         schema:
  *           type: string
- *           enum: [free, pro, business, enterprise]
+ *           enum: [free, starter, pro, business, enterprise]
  *         description: User's subscription tier
  *     requestBody:
  *       required: true
@@ -587,7 +587,7 @@
  *         required: true
  *         schema:
  *           type: string
- *           enum: [free, pro, business, enterprise]
+ *           enum: [free, starter, pro, business, enterprise]
  *         description: Subscription tier
  *     responses:
  *       200:

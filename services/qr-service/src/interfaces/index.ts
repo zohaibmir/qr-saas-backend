@@ -374,7 +374,7 @@ export type QRTemplateCategory =
   | 'healthcare' 
   | 'transportation';
 
-export type SubscriptionTier = 'free' | 'pro' | 'business' | 'enterprise';
+export type SubscriptionTier = 'free' | 'starter' | 'pro' | 'business' | 'enterprise';
 
 // QR Categories System Interfaces
 export interface IQRCategoryService {

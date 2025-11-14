@@ -577,6 +577,7 @@ export class SubscriptionService implements ISubscriptionService {
   private mapPlanNameToTier(planName: string): string {
     const tierMapping: Record<string, string> = {
       'Free': 'free',
+      'Starter': 'starter',
       'Pro': 'pro',
       'Business': 'business',
       'Enterprise': 'enterprise'

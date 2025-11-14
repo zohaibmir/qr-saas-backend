@@ -3,7 +3,7 @@ export interface User {
     email: string;
     password?: string;
     name: string;
-    subscriptionTier: 'free' | 'pro' | 'business' | 'enterprise';
+    subscriptionTier: 'free' | 'starter' | 'pro' | 'business' | 'enterprise';
     isEmailVerified: boolean;
     isActive: boolean;
     createdAt: Date;

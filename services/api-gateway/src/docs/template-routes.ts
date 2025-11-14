@@ -41,7 +41,7 @@
  *           example: false
  *         requiredSubscriptionTier:
  *           type: string
- *           enum: [free, pro, business, enterprise]
+ *           enum: [free, starter, pro, business, enterprise]
  *           description: Minimum subscription tier required
  *           example: free
  *         defaultConfig:
@@ -188,7 +188,7 @@
  *         required: false
  *         schema:
  *           type: string
- *           enum: [free, pro, business, enterprise]
+ *           enum: [free, starter, pro, business, enterprise]
  *       - name: popular
  *         in: query
  *         description: Show only popular templates

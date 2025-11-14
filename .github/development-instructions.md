@@ -65,11 +65,12 @@ This workspace contains a Node.js TypeScript microservices architecture for a QR
 - ✅ **API Gateway Integration**: Full payment endpoints accessible via /api/auth/* and /api/users/* routes
 - ✅ **Swagger Documentation**: Complete API documentation with interactive payment endpoints
 
-**✅ COMPLETED SUBSCRIPTION TIERS:**
-- ✅ **Free Tier**: 10 QR codes, 30-day analytics, basic customization
-- ✅ **Pro Tier**: 500 QR codes, 1-year analytics, advanced customization  
-- ✅ **Business Tier**: Unlimited QR codes, 3-year analytics, team features
-- ✅ **Enterprise Tier**: White-label, custom domains, priority support
+**✅ OPTIMIZED SUBSCRIPTION TIERS:**
+- ✅ **Free Tier**: 10 QR codes/month, 7-day analytics, basic customization, no watermark
+- ✅ **Starter Tier**: 50 QR codes/month, 30-day analytics, advanced customization, password protection
+- ✅ **Pro Tier**: 500 QR codes/month, 1-year analytics, custom domains, bulk generation
+- ✅ **Business Tier**: 2,500 QR codes/month, 2-year analytics, team features, white-label
+- ✅ **Enterprise Tier**: Unlimited QR codes, 3-year analytics, priority support, custom integrations
 
 #### **QR Code Validity & Expiration** ✅ **COMPLETED**
 - ✅ **Time-based Expiration**: Set expiry dates for QR codes with database storage and validation
