@@ -16,7 +16,7 @@ export class CrossCampaignAnalysisController {
     async createCampaignGroup(req: Request, res: Response): Promise<void> {
         try {
             const { name, description, status, start_date, end_date, metadata } = req.body;
-            const created_by = req.user?.id || 'system'; // Assuming user is attached to request
+            const created_by = req.auth?.userId || 'system'; // Assuming user is attached to request
 
             const campaignGroup = await this.crossCampaignService.createCampaignGroup({
                 name,
@@ -148,7 +148,7 @@ export class CrossCampaignAnalysisController {
                 secondary_metrics
             } = req.body;
 
-            const created_by = req.user?.id || 'system';
+            const created_by = req.auth?.userId || 'system';
 
             const experiment = await this.crossCampaignService.createABExperiment({
                 campaign_group_id,

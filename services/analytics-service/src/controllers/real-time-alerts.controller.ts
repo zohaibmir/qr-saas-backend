@@ -18,7 +18,7 @@ export class RealTimeAlertsController {
   async createAlertRule(req: Request, res: Response): Promise<void> {
     try {
       const createRequest: CreateAlertRuleRequest = {
-        userId: req.user?.id || '',
+        userId: req.auth?.userId || '',
         qrCodeId: req.body.qrCodeId,
         name: req.body.name,
         description: req.body.description,
@@ -57,7 +57,7 @@ export class RealTimeAlertsController {
     } catch (error) {
       this.logger.error('Failed to create alert rule', { 
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: req.user?.id
+        userId: req.auth?.userId
       });
 
       if (error instanceof ValidationError) {
@@ -89,7 +89,7 @@ export class RealTimeAlertsController {
 
       this.logger.info('Updating alert rule', { 
         alertRuleId,
-        userId: req.user?.id
+        userId: req.auth?.userId
       });
 
       const result = await this.alertEngineService.updateAlertRule(alertRuleId, updates);
@@ -111,7 +111,7 @@ export class RealTimeAlertsController {
       this.logger.error('Failed to update alert rule', { 
         error: error instanceof Error ? error.message : 'Unknown error',
         alertRuleId: req.params.alertRuleId,
-        userId: req.user?.id
+        userId: req.auth?.userId
       });
 
       res.status(500).json({
@@ -131,7 +131,7 @@ export class RealTimeAlertsController {
 
       this.logger.info('Deleting alert rule', { 
         alertRuleId,
-        userId: req.user?.id
+        userId: req.auth?.userId
       });
 
       const result = await this.alertEngineService.deleteAlertRule(alertRuleId);
@@ -153,7 +153,7 @@ export class RealTimeAlertsController {
       this.logger.error('Failed to delete alert rule', { 
         error: error instanceof Error ? error.message : 'Unknown error',
         alertRuleId: req.params.alertRuleId,
-        userId: req.user?.id
+        userId: req.auth?.userId
       });
 
       res.status(500).json({
@@ -170,7 +170,7 @@ export class RealTimeAlertsController {
   // Alert Instances Management
   async getActiveAlerts(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.user?.id;
+      const userId = req.auth?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -209,7 +209,7 @@ export class RealTimeAlertsController {
     } catch (error) {
       this.logger.error('Failed to get active alerts', { 
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: req.user?.id
+        userId: req.auth?.userId
       });
 
       res.status(500).json({
@@ -226,7 +226,7 @@ export class RealTimeAlertsController {
   async acknowledgeAlert(req: Request, res: Response): Promise<void> {
     try {
       const alertInstanceId = req.params.alertInstanceId;
-      const userId = req.user?.id;
+      const userId = req.auth?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -262,7 +262,7 @@ export class RealTimeAlertsController {
       this.logger.error('Failed to acknowledge alert', { 
         error: error instanceof Error ? error.message : 'Unknown error',
         alertInstanceId: req.params.alertInstanceId,
-        userId: req.user?.id
+        userId: req.auth?.userId
       });
 
       res.status(500).json({
@@ -279,7 +279,7 @@ export class RealTimeAlertsController {
   async resolveAlert(req: Request, res: Response): Promise<void> {
     try {
       const alertInstanceId = req.params.alertInstanceId;
-      const userId = req.user?.id;
+      const userId = req.auth?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -315,7 +315,7 @@ export class RealTimeAlertsController {
       this.logger.error('Failed to resolve alert', { 
         error: error instanceof Error ? error.message : 'Unknown error',
         alertInstanceId: req.params.alertInstanceId,
-        userId: req.user?.id
+        userId: req.auth?.userId
       });
 
       res.status(500).json({
@@ -332,7 +332,7 @@ export class RealTimeAlertsController {
   // Alert Engine Management
   async startAlertEngine(req: Request, res: Response): Promise<void> {
     try {
-      this.logger.info('Starting alert engine', { userId: req.user?.id });
+      this.logger.info('Starting alert engine', { userId: req.auth?.userId });
 
       const result = await this.alertEngineService.startAlertEngine();
 
@@ -367,7 +367,7 @@ export class RealTimeAlertsController {
 
   async stopAlertEngine(req: Request, res: Response): Promise<void> {
     try {
-      this.logger.info('Stopping alert engine', { userId: req.user?.id });
+      this.logger.info('Stopping alert engine', { userId: req.auth?.userId });
 
       const result = await this.alertEngineService.stopAlertEngine();
 
@@ -404,7 +404,7 @@ export class RealTimeAlertsController {
   async testAlertRule(req: Request, res: Response): Promise<void> {
     try {
       const { metricType, metricValue, qrCodeId } = req.body;
-      const userId = req.user?.id;
+      const userId = req.auth?.userId;
 
       this.logger.info('Testing alert rule', { 
         metricType,
@@ -444,7 +444,7 @@ export class RealTimeAlertsController {
     } catch (error) {
       this.logger.error('Failed to test alert rule', { 
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: req.user?.id
+        userId: req.auth?.userId
       });
 
       res.status(500).json({
@@ -461,7 +461,7 @@ export class RealTimeAlertsController {
   // Alert Templates and Presets
   async getAlertTemplates(req: Request, res: Response): Promise<void> {
     try {
-      this.logger.info('Getting alert templates', { userId: req.user?.id });
+      this.logger.info('Getting alert templates', { userId: req.auth?.userId });
 
       const templates = [
         {

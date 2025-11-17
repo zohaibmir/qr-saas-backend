@@ -1557,6 +1557,7 @@ const options = {
     './src/docs/payment-routes.ts',
     './src/docs/team-routes.ts',
     './src/docs/analytics-files-routes.ts',
+    './src/docs/complete-analytics-routes.ts',
     './src/docs/cross-campaign-analytics-routes.ts',
     './src/docs/custom-dashboards-routes.ts',
     './src/docs/real-time-alerts-routes.ts',

@@ -1,70 +1,90 @@
 import { Router } from 'express';
 import { CustomDashboardController, dashboardValidation } from '../controllers/custom-dashboard.controller';
+import { requireAuth, requireSubscriptionTier } from '../middleware/auth.middleware';
 import { IDependencyContainer } from '../interfaces';
 
 /**
  * Custom Dashboard Routes
  * 
- * All routes for dashboard management, widgets, and real-time data
+ * Custom dashboards are premium features with subscription requirements:
+ * - Starter: Basic dashboards (up to 3)
+ * - Pro: Advanced dashboards (up to 10) + templates
+ * - Business: Advanced dashboards (up to 25) + team features  
+ * - Enterprise: Unlimited dashboards + custom widgets + real-time updates
  */
 export function createCustomDashboardRoutes(container: IDependencyContainer): Router {
   const router = Router();
   const controller = new CustomDashboardController(container);
 
-  // Dashboard CRUD Operations
+  // All dashboard operations require authentication
+  router.use(requireAuth);
+
+  // Basic Dashboard CRUD Operations (Starter tier and above)
   router.post('/', 
+    requireSubscriptionTier('starter'),
     dashboardValidation.create, 
     controller.createDashboard
   );
 
   router.get('/', 
+    requireSubscriptionTier('starter'),
     dashboardValidation.list, 
     controller.getUserDashboards
   );
 
   router.get('/:id', 
+    requireSubscriptionTier('starter'),
     dashboardValidation.get, 
     controller.getDashboard
   );
 
   router.put('/:id', 
+    requireSubscriptionTier('starter'),
     dashboardValidation.update, 
     controller.updateDashboard
   );
 
   router.delete('/:id', 
+    requireSubscriptionTier('starter'),
     dashboardValidation.get, 
     controller.deleteDashboard
   );
 
-  // Dashboard Templates
+  // Dashboard Templates (Pro tier and above)
   router.get('/templates', 
+    requireSubscriptionTier('pro'),
     controller.getDashboardTemplates
   );
 
   router.post('/templates/:templateId/create', 
+    requireSubscriptionTier('pro'),
     controller.createFromTemplate
   );
 
-  // Widget Operations
+  // Advanced Widget Operations (Pro tier and above)
   router.get('/widgets/:widgetId/data', 
+    requireSubscriptionTier('pro'),
     controller.getWidgetData
   );
 
   router.get('/widget-templates', 
+    requireSubscriptionTier('pro'),
     controller.getWidgetTemplates
   );
 
-  // Dashboard Actions
+  // Premium Dashboard Features (Enterprise tier)
   router.post('/:id/duplicate', 
+    requireSubscriptionTier('enterprise'),
     controller.duplicateDashboard
   );
 
   router.get('/:id/export', 
+    requireSubscriptionTier('enterprise'),
     controller.exportDashboard
   );
 
   router.get('/:id/analytics', 
+    requireSubscriptionTier('enterprise'),
     controller.getDashboardAnalytics
   );
 

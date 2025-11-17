@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { RealTimeAlertsController } from '../controllers/real-time-alerts.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { extractAuth, requireAuth, requireSubscriptionTier } from '../middleware/auth.middleware';
 import { validationMiddleware, alertRuleSchema, alertRuleUpdateSchema } from '../middleware/validation.middleware';
 
 export function createRealTimeAlertsRoutes(
@@ -9,7 +9,8 @@ export function createRealTimeAlertsRoutes(
   const router = Router();
 
   // Apply authentication middleware to all routes
-  router.use(authMiddleware);
+  // Real-time alerts require authentication
+  router.use(requireAuth);
 
   // Alert Rules Management
   router.post(

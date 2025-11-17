@@ -860,6 +860,7 @@ export class AnalyticsRepository implements IAnalyticsRepository {
           COALESCE(u.subscription_tier, 'free') as plan,
           COUNT(DISTINCT u.id) as users,
           CASE 
+            WHEN u.subscription_tier = 'starter' THEN COUNT(DISTINCT u.id) * 9
             WHEN u.subscription_tier = 'pro' THEN COUNT(DISTINCT u.id) * 19
             WHEN u.subscription_tier = 'business' THEN COUNT(DISTINCT u.id) * 49  
             WHEN u.subscription_tier = 'enterprise' THEN COUNT(DISTINCT u.id) * 199

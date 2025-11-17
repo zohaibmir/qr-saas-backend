@@ -4,13 +4,16 @@ import { CustomDashboardService } from '../services/custom-dashboard.service';
 import { IDependencyContainer } from '../interfaces';
 import { AppError } from '../../../../shared/src/utils/errors';
 
-// Extended Request interface with user
+// Extended Request interface with auth context (same as QR service)
 interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
+  auth?: {
+    userId: string;
     email: string;
-    full_name?: string;
-    role?: string;
+    username: string;
+    subscriptionTier: 'free' | 'starter' | 'pro' | 'business' | 'enterprise';
+    isEmailVerified: boolean;
+    permissions?: string[];
+    organizationId?: string;
   };
 }
 
@@ -50,7 +53,7 @@ export class CustomDashboardController {
         return;
       }
 
-      const userId = req.user?.id;
+      const userId = req.auth?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -91,7 +94,7 @@ export class CustomDashboardController {
    */
   getUserDashboards = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const userId = req.user?.id;
+      const userId = req.auth?.userId;
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -135,7 +138,7 @@ export class CustomDashboardController {
   getDashboard = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const userId = req.user?.id;
+      const userId = req.auth?.userId;
 
       if (!userId) {
         res.status(401).json({
@@ -200,7 +203,7 @@ export class CustomDashboardController {
       }
 
       const { id } = req.params;
-      const userId = req.user?.id;
+      const userId = req.auth?.userId;
 
       if (!userId) {
         res.status(401).json({
@@ -238,7 +241,7 @@ export class CustomDashboardController {
   deleteDashboard = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const userId = req.user?.id;
+      const userId = req.auth?.userId;
 
       if (!userId) {
         res.status(401).json({
@@ -285,7 +288,7 @@ export class CustomDashboardController {
   getWidgetData = async (req: Request, res: Response): Promise<void> => {
     try {
       const { widgetId } = req.params;
-      const userId = req.user?.id;
+      const userId = req.auth?.userId;
 
       if (!userId) {
         res.status(401).json({
@@ -380,7 +383,7 @@ export class CustomDashboardController {
   createFromTemplate = async (req: Request, res: Response): Promise<void> => {
     try {
       const { templateId } = req.params;
-      const userId = req.user?.id;
+      const userId = req.auth?.userId;
 
       if (!userId) {
         res.status(401).json({
@@ -452,7 +455,7 @@ export class CustomDashboardController {
   duplicateDashboard = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const userId = req.user?.id;
+      const userId = req.auth?.userId;
 
       if (!userId) {
         res.status(401).json({
@@ -518,7 +521,7 @@ export class CustomDashboardController {
     try {
       const { id } = req.params;
       const { format = 'json' } = req.query;
-      const userId = req.user?.id;
+      const userId = req.auth?.userId;
 
       if (!userId) {
         res.status(401).json({
@@ -582,7 +585,7 @@ export class CustomDashboardController {
   getDashboardAnalytics = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const userId = req.user?.id;
+      const userId = req.auth?.userId;
 
       if (!userId) {
         res.status(401).json({

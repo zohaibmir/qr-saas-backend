@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { PredictiveAnalyticsController } from '../controllers/predictive-analytics.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { extractAuth, requireAuth, requireSubscriptionTier } from '../middleware/auth.middleware';
 import { validationMiddleware } from '../middleware/validation.middleware';
 import * as Joi from 'joi';
 
@@ -49,7 +49,9 @@ export function createPredictiveAnalyticsRoutes(
     const router = Router();
 
     // Apply authentication middleware to all routes
-    router.use(authMiddleware);
+    // Predictive analytics requires authentication and enterprise tier
+    router.use(requireAuth);
+    router.use(requireSubscriptionTier('enterprise'));
 
     // Model Management Routes
     router.post(

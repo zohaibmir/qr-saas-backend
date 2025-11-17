@@ -281,6 +281,75 @@ class CleanApiGatewayApplication {
       await this.proxyRequest(req, res, 'analytics-service', '/api/analytics', '/analytics');
     });
 
+    // Additional Analytics routes for specialized endpoints
+    this.app.all('/api/campaigns', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/campaigns', '/campaigns');
+    });
+    this.app.all('/api/campaigns/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/campaigns', '/campaigns');
+    });
+
+    this.app.all('/api/utm', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/utm', '/utm');
+    });
+    this.app.all('/api/utm/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/utm', '/utm');
+    });
+
+    this.app.all('/api/heatmap', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/heatmap', '/heatmap');
+    });
+    this.app.all('/api/heatmap/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/heatmap', '/heatmap');
+    });
+
+    this.app.all('/api/peak-time', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/peak-time', '/peak-time');
+    });
+    this.app.all('/api/peak-time/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/peak-time', '/peak-time');
+    });
+
+    // Marketing analytics routes
+    this.app.all('/api/marketing', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/marketing', '/marketing');
+    });
+    this.app.all('/api/marketing/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/marketing', '/marketing');
+    });
+
+    // Cross-campaign analysis routes
+    this.app.all('/api/cross-campaign', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/cross-campaign', '/cross-campaign');
+    });
+    this.app.all('/api/cross-campaign/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/cross-campaign', '/cross-campaign');
+    });
+
+    // Custom dashboard routes
+    this.app.all('/api/dashboards', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/dashboards', '/dashboards');
+    });
+    this.app.all('/api/dashboards/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/dashboards', '/dashboards');
+    });
+
+    // Real-time alerts routes
+    this.app.all('/api/alerts', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/alerts', '/alerts');
+    });
+    this.app.all('/api/alerts/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/alerts', '/alerts');
+    });
+
+    // Predictive analytics routes
+    this.app.all('/api/predictions', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/predictions', '/predictions');
+    });
+    this.app.all('/api/predictions/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'analytics-service', '/api/predictions', '/predictions');
+    });
+
     // File routes
     this.app.all('/api/files', async (req, res) => {
       await this.proxyRequest(req, res, 'file-service', '/api/files', '/files');

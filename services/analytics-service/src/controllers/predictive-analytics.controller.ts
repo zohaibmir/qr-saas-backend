@@ -9,7 +9,7 @@ export class PredictiveAnalyticsController {
     // Model Management
     async createPredictionModel(req: Request, res: Response): Promise<void> {
         try {
-            const userId = req.user?.id;
+            const userId = req.auth?.userId;
             if (!userId) {
                 res.status(401).json({
                     success: false,
@@ -58,7 +58,7 @@ export class PredictiveAnalyticsController {
 
     async trainModel(req: Request, res: Response): Promise<void> {
         try {
-            const userId = req.user?.id;
+            const userId = req.auth?.userId;
             if (!userId) {
                 res.status(401).json({
                     success: false,
@@ -88,7 +88,7 @@ export class PredictiveAnalyticsController {
     // Prediction Generation
     async generatePredictions(req: Request, res: Response): Promise<void> {
         try {
-            const userId = req.user?.id;
+            const userId = req.auth?.userId;
             if (!userId) {
                 res.status(401).json({
                     success: false,
@@ -119,7 +119,7 @@ export class PredictiveAnalyticsController {
     // Analytics
     async analyzePatterns(req: Request, res: Response): Promise<void> {
         try {
-            const userId = req.user?.id;
+            const userId = req.auth?.userId;
             if (!userId) {
                 res.status(401).json({
                     success: false,
@@ -155,7 +155,7 @@ export class PredictiveAnalyticsController {
 
     async analyzeTrends(req: Request, res: Response): Promise<void> {
         try {
-            const userId = req.user?.id;
+            const userId = req.auth?.userId;
             if (!userId) {
                 res.status(401).json({
                     success: false,
@@ -192,7 +192,7 @@ export class PredictiveAnalyticsController {
 
     async analyzeSeasonality(req: Request, res: Response): Promise<void> {
         try {
-            const userId = req.user?.id;
+            const userId = req.auth?.userId;
             if (!userId) {
                 res.status(401).json({
                     success: false,
@@ -223,7 +223,7 @@ export class PredictiveAnalyticsController {
     // Optimization Recommendations
     async generateOptimizationRecommendations(req: Request, res: Response): Promise<void> {
         try {
-            const userId = req.user?.id;
+            const userId = req.auth?.userId;
             if (!userId) {
                 res.status(401).json({
                     success: false,

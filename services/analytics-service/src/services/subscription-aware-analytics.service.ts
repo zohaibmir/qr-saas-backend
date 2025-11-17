@@ -353,16 +353,16 @@ class SubscriptionAwareAnalyticsService implements IAnalyticsService {
           success: true,
           data: {
             planName: 'Free',
-            retentionDays: 30,
+            retentionDays: 7,
             features: ['basic_analytics'],
             qrLimit: 10,
             currentUsage: 0, // Would need to query QR service
             canUpgrade: true,
             limitations: [
-              '30-day analytics retention',
+              '7-day analytics retention',
               'Basic analytics only',
               'Limited to 10 QR codes',
-              'CSV export only'
+              'No watermark removal'
             ]
           }
         };
@@ -477,20 +477,34 @@ class SubscriptionAwareAnalyticsService implements IAnalyticsService {
 
     switch (plan.name) {
       case 'Free':
-        limitations.push('30-day analytics retention');
+        limitations.push('7-day analytics retention');
         limitations.push('Basic analytics only');
         limitations.push('Limited to 10 QR codes');
-        limitations.push('CSV export only');
+        limitations.push('No watermark removal');
+        break;
+      case 'Starter':
+        limitations.push('30-day analytics retention');
+        limitations.push('Advanced customization');
+        limitations.push('Limited to 50 QR codes');
+        limitations.push('Password protection available');
         break;
       case 'Pro':
         limitations.push('1-year analytics retention');
         limitations.push('Limited to 500 QR codes');
+        limitations.push('Custom domains available');
+        limitations.push('Bulk generation available');
         break;
       case 'Business':
-        limitations.push('3-year analytics retention');
+        limitations.push('2-year analytics retention');
+        limitations.push('Limited to 2,500 QR codes');
+        limitations.push('Team features available');
+        limitations.push('White-label available');
         break;
       case 'Enterprise':
-        limitations.push('No limitations');
+        limitations.push('3-year analytics retention');
+        limitations.push('Unlimited QR codes');
+        limitations.push('Priority support');
+        limitations.push('Custom integrations');
         break;
       default:
         limitations.push('Unknown plan limitations');
