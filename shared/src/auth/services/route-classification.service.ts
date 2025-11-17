@@ -158,9 +158,13 @@ export const DEFAULT_PUBLIC_ROUTES: RouteConfig[] = [
   { pattern: '/p/:slug', method: 'GET', isPublic: true },
   { pattern: '/uploads/qr-images/*', method: 'GET', isPublic: true },
   
-  // Health and system
+  // Health and system (specific health endpoints must come before wildcard patterns)
   { pattern: '/health', method: 'GET', isPublic: true },
   { pattern: '/health/*', method: 'GET', isPublic: true },
+  { pattern: '/api/files/health', method: 'GET', isPublic: true },
+  { pattern: '/api/files/health/*', method: 'GET', isPublic: true },
+  { pattern: '/api/*/health', method: 'GET', isPublic: true },
+  { pattern: '/api/*/health/*', method: 'GET', isPublic: true },
   { pattern: '/', method: 'GET', isPublic: true },
   { pattern: '/api-docs', method: 'GET', isPublic: true },
   { pattern: '/api-docs/*', method: 'GET', isPublic: true },
@@ -191,6 +195,10 @@ export const DEFAULT_PROTECTED_ROUTES: RouteConfig[] = [
   // Analytics
   { pattern: '/api/analytics', method: '*', isPublic: false },
   { pattern: '/api/analytics/*', method: '*', isPublic: false },
+  
+  // File management (exclude health endpoints which are public)
+  { pattern: '/api/files', method: '*', isPublic: false },
+  { pattern: '/api/files/*', method: '*', isPublic: false },
   
   // Teams (Pro tier and above)
   { 

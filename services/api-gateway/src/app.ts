@@ -351,6 +351,15 @@ class CleanApiGatewayApplication {
     });
 
     // File routes
+    // Handle health endpoints specifically (public routes)
+    this.app.all('/api/files/health', async (req, res) => {
+      await this.proxyRequest(req, res, 'file-service', '/api/files/health', '/health');
+    });
+    this.app.all('/api/files/health/*', async (req, res) => {
+      await this.proxyRequest(req, res, 'file-service', '/api/files/health', '/health');
+    });
+    
+    // General file routes (protected)
     this.app.all('/api/files', async (req, res) => {
       await this.proxyRequest(req, res, 'file-service', '/api/files', '/files');
     });

@@ -5,6 +5,9 @@ import compression from 'compression';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 
+// Import Clean Architecture service auth
+import { ServiceAuthExtractor } from '@qr-saas/shared';
+
 // Extend Express Request type for multer
 declare global {
   namespace Express {
@@ -129,6 +132,10 @@ class FileServiceApp {
       });
       next();
     });
+
+    // Service Authentication Middleware - extracts x-auth-* headers from API Gateway
+    // This middleware simply extracts them into req.auth
+    this.app.use(ServiceAuthExtractor.createServiceMiddleware());
   }
 
   private setupRoutes(): void {

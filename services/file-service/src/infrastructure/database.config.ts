@@ -2,6 +2,7 @@ import { Pool, PoolClient } from 'pg';
 import { ILogger } from '../interfaces';
 
 export class DatabaseConfig {
+  private static instance: DatabaseConfig;
   private pool: Pool;
   private logger?: ILogger;
 
@@ -30,6 +31,59 @@ export class DatabaseConfig {
         maxConnections: parseInt(process.env.DB_MAX_CONNECTIONS || '20'),
         minConnections: parseInt(process.env.DB_MIN_CONNECTIONS || '2')
       });
+    }
+  }
+
+  /**
+   * Initialize static instance - following user-service pattern
+   */
+  static initialize(logger: ILogger): void {
+    if (!DatabaseConfig.instance) {
+      DatabaseConfig.instance = new DatabaseConfig(logger);
+    }
+  }
+
+  /**
+   * Get static instance - following user-service pattern
+   */
+  static getInstance(): DatabaseConfig {
+    if (!DatabaseConfig.instance) {
+      throw new Error('DatabaseConfig not initialized. Call initialize() first.');
+    }
+    return DatabaseConfig.instance;
+  }
+
+  /**
+   * Test database connection - following user-service pattern
+   */
+  static async testConnection(): Promise<boolean> {
+    try {
+      const instance = DatabaseConfig.getInstance();
+      const client = await instance.pool.connect();
+      await client.query('SELECT 1');
+      client.release();
+      return true;
+    } catch (error) {
+      console.error('Database connection test failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get pool instance - following user-service pattern
+   */
+  static getPool(): Pool {
+    const instance = DatabaseConfig.getInstance();
+    return instance.pool;
+  }
+
+  /**
+   * Close database connection - following user-service pattern
+   */
+  static async close(): Promise<void> {
+    if (DatabaseConfig.instance) {
+      await DatabaseConfig.instance.pool.end();
+      DatabaseConfig.instance = null as any;
     }
   }
 
